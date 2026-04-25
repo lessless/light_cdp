@@ -19,6 +19,23 @@ Follow Beck's four rules of simple design (https://martinfowler.com/bliki/BeckDe
 
 When in doubt, delete code rather than add it.
 
+## Commits
+
+Use conventional commits (https://www.conventionalcommits.org/). The changelog and version bumps are managed by `git_ops`.
+
+```
+feat: add Page.screenshot/2
+fix: prevent crash on WebSocket close during shutdown
+refactor: extract OTel bridge into library module
+docs: show OTP and script setup patterns
+test: add Cypress Kitchen Sink integration tests
+chore: add tidewave for dev tooling
+```
+
+Breaking changes use `!` after the type: `feat!: change error return type`.
+
+To release: `mix git_ops.release` (bumps version, updates CHANGELOG, commits, tags).
+
 ## Documentation
 
 All public functions MUST have `@doc` with a description, options (if any), and at least one example. All public modules MUST have `@moduledoc`. When changing a function's behavior or return type, update its `@doc` in the same commit. Run `mix docs` to verify.

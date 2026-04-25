@@ -1,10 +1,12 @@
 defmodule LightCDP.MixProject do
   use Mix.Project
 
+  @version "0.2.0"
+
   def project do
     [
       app: :light_cdp,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -53,7 +55,8 @@ defmodule LightCDP.MixProject do
       {:opentelemetry_api, "~> 1.3", optional: true},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:tidewave, "~> 0.4", only: :dev},
-      {:bandit, "~> 1.8", only: :dev}
+      {:bandit, "~> 1.8", only: :dev},
+      {:git_ops, "~> 2.6", only: :dev}
     ]
   end
 
