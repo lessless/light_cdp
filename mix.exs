@@ -7,7 +7,8 @@ defmodule LightCDP.MixProject do
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      docs: docs()
     ]
   end
 
@@ -19,6 +20,12 @@ defmodule LightCDP.MixProject do
   end
 
   # Run "mix help deps" to learn about dependencies.
+  defp docs do
+    [
+      main: "LightCDP"
+    ]
+  end
+
   defp deps do
     [
       {:websockex, "~> 0.4"},
