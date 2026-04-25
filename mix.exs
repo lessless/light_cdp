@@ -33,7 +33,11 @@ defmodule LightCDP.MixProject do
   defp docs do
     [
       main: "LightCDP",
-      source_url: "https://github.com/lessless/light_cdp"
+      source_url: "https://github.com/lessless/light_cdp",
+      extras: [
+        "examples/sample.md",
+        "examples/sample_traced.md"
+      ]
     ]
   end
 

@@ -15,7 +15,7 @@ A minimal Elixir client for the [Chrome DevTools Protocol](https://chromedevtool
 LightCDP.stop(session)
 ```
 
-See [`docs/sample.exs`](docs/sample.exs) for a full extraction script that searches Hacker News and returns structured results.
+See [`examples/sample.exs`](examples/sample.exs) for a full extraction script that searches Hacker News and returns structured results.
 
 ## Installation
 
