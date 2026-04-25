@@ -1,5 +1,5 @@
 defmodule LightCDP.ProtocolTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   describe "encode/3" do
     test "encodes a command with id, method, and params" do

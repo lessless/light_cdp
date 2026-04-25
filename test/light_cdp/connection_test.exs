@@ -1,5 +1,5 @@
 defmodule LightCDP.ConnectionTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   setup_all do
     {:ok, server, endpoint} = LightCDP.Server.start(port: 9222)

@@ -1,5 +1,5 @@
 defmodule LightCDP.IntegrationTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   test "full flow: start server, open page, navigate, evaluate, stop" do
     {:ok, session} = LightCDP.start(port: 9227)

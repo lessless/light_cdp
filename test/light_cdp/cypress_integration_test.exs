@@ -3,7 +3,7 @@ defmodule LightCDP.CypressIntegrationTest do
   Integration tests against https://example.cypress.io/
   Exercises every supported LightCDP feature against real-world HTML.
   """
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   @base "https://example.cypress.io"
 

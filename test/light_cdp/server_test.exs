@@ -1,5 +1,5 @@
 defmodule LightCDP.ServerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   test "starts Lightpanda and returns endpoint" do
     {:ok, server, endpoint} = LightCDP.Server.start(port: 9224)
