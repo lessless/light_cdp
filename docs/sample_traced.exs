@@ -110,57 +110,56 @@ IO.puts("OpenTelemetry configured — traces will export to http://localhost:431
 
 # --- Same script as sample.exs, wrapped in a root span ---
 
-{:ok, session} = LightCDP.start()
-{:ok, page} = LightCDP.new_page(session)
+defmodule HNSearch do
+  require OpenTelemetry.Tracer
 
-# Start a root span so all page operations nest under one trace
-tracer = :opentelemetry.get_tracer(:light_cdp_sample)
-root_ctx = :otel_ctx.get_current()
-root_span = :otel_tracer.start_span(root_ctx, tracer, "hn_search", %{attributes: [{:query, "lightpanda"}]})
-root_ctx = :otel_tracer.set_current_span(root_ctx, root_span)
-_token = :otel_ctx.attach(root_ctx)
+  def run do
+    {:ok, session} = LightCDP.start()
+    {:ok, page} = LightCDP.new_page(session)
 
-try do
-  IO.puts("Navigating to Hacker News...")
-  :ok = LightCDP.Page.navigate(page, "https://news.ycombinator.com/")
+    OpenTelemetry.Tracer.with_span "hn_search", %{attributes: [query: "lightpanda"]} do
+      IO.puts("Navigating to Hacker News...")
+      :ok = LightCDP.Page.navigate(page, "https://news.ycombinator.com/")
 
-  IO.puts("Searching for 'lightpanda'...")
-  :ok = LightCDP.Page.fill(page, "input[name=\"q\"]", "lightpanda")
+      IO.puts("Searching for 'lightpanda'...")
+      :ok = LightCDP.Page.fill(page, "input[name=\"q\"]", "lightpanda")
 
-  :ok =
-    LightCDP.Page.wait_for_navigation(page, fn ->
-      LightCDP.Page.evaluate(page, "document.querySelector('input[name=\"q\"]').form.submit()")
-    end)
+      :ok =
+        LightCDP.Page.wait_for_navigation(page, fn ->
+          LightCDP.Page.evaluate(page, "document.querySelector('input[name=\"q\"]').form.submit()")
+        end)
 
-  IO.puts("Waiting for results...")
-  :ok = LightCDP.Page.wait_for_selector(page, ".Story_container", timeout: 5_000)
+      IO.puts("Waiting for results...")
+      :ok = LightCDP.Page.wait_for_selector(page, ".Story_container", timeout: 5_000)
 
-  IO.puts("Extracting results...\n")
+      IO.puts("Extracting results...\n")
 
-  {:ok, results} =
-    LightCDP.Page.evaluate(page, """
-    Array.from(document.querySelectorAll('.Story_container')).map(row => ({
-      title: row.querySelector('.Story_title span')?.textContent || '',
-      url: row.querySelector('.Story_title a')?.getAttribute('href') || '',
-      meta: Array.from(
-        row.querySelectorAll('.Story_meta > span:not(.Story_separator, .Story_comment)')
-      ).map(el => el.textContent)
-    }));
-    """)
+      {:ok, results} =
+        LightCDP.Page.evaluate(page, """
+        Array.from(document.querySelectorAll('.Story_container')).map(row => ({
+          title: row.querySelector('.Story_title span')?.textContent || '',
+          url: row.querySelector('.Story_title a')?.getAttribute('href') || '',
+          meta: Array.from(
+            row.querySelectorAll('.Story_meta > span:not(.Story_separator, .Story_comment)')
+          ).map(el => el.textContent)
+        }));
+        """)
 
-  for result <- results do
-    IO.puts(result["title"])
-    IO.puts("  #{result["url"]}")
-    IO.puts("  #{Enum.join(result["meta"], " · ")}")
-    IO.puts("")
+      for result <- results do
+        IO.puts(result["title"])
+        IO.puts("  #{result["url"]}")
+        IO.puts("  #{Enum.join(result["meta"], " · ")}")
+        IO.puts("")
+      end
+
+      IO.puts("Found #{length(results)} results.")
+    end
+
+    LightCDP.stop(session)
   end
-
-  IO.puts("Found #{length(results)} results.")
-after
-  :otel_span.end_span(root_span)
 end
 
-LightCDP.stop(session)
+HNSearch.run()
 
 # Flush spans to Jaeger before exit
 try do
