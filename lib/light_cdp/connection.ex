@@ -46,6 +46,7 @@ defmodule LightCDP.Connection do
   Closes the WebSocket connection.
   """
   def close(pid) do
+    Process.unlink(pid)
     Process.exit(pid, :normal)
     :ok
   end
