@@ -422,9 +422,14 @@ defmodule LightCDP.Page do
       }, timeout)
     end
 
-    with {:ok, _} <- (emit_step(:press); mouse.("mousePressed")),
-         {:ok, _} <- (emit_step(:release); mouse.("mouseReleased")) do
-      :ok
+    emit_step(:press)
+
+    with {:ok, _} <- mouse.("mousePressed") do
+      emit_step(:release)
+
+      with {:ok, _} <- mouse.("mouseReleased") do
+        :ok
+      end
     end
   end
 

@@ -36,9 +36,9 @@ defmodule LightCDP.Telemetry do
   @page_operations ~w(navigate evaluate click fill submit screenshot content url wait_for_selector wait_for_navigation)a
 
   @doc """
-  Returns all telemetry event names emitted by LightCDP.
+  Returns all span event names (`:start`, `:stop`, `:exception`) emitted by LightCDP.
   """
-  def events do
+  def span_events do
     page_events =
       for op <- @page_operations, suffix <- [:start, :stop, :exception] do
         [:light_cdp, :page, op, suffix]
@@ -49,7 +49,15 @@ defmodule LightCDP.Telemetry do
         [:light_cdp, :connection, :command, suffix]
       end
 
-    page_events ++ command_events ++ [[:light_cdp, :page, :step]]
+    page_events ++ command_events
+  end
+
+  @doc """
+  Returns all telemetry event names emitted by LightCDP,
+  including both span events and point events (step annotations).
+  """
+  def events do
+    span_events() ++ [[:light_cdp, :page, :step]]
   end
 
   @doc """
