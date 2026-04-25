@@ -1,7 +1,7 @@
 # Hacker News search with OpenTelemetry tracing
 #
 # Prerequisites:
-#   Jaeger running locally (e.g. docker run -d --name jaeger -p 16686:16686 -p 4318:4318 jaegertracing/jaeger:latest)
+#   Jaeger running locally: jaeger (or docker run -d -p 16686:16686 -p 4318:4318 jaegertracing/jaeger:latest)
 #
 # Usage:
 #   elixir docs/sample_traced.exs
@@ -10,7 +10,9 @@
 
 # Start inets before Mix.install so the OTLP HTTP exporter can initialize cleanly
 Application.ensure_all_started(:inets)
+Application.ensure_all_started(:ssl)
 
+# Configure OTel BEFORE Mix.install starts the applications
 Application.put_env(:opentelemetry, :resource, %{
   service: %{name: "light_cdp_sample"}
 })
@@ -23,16 +25,13 @@ Mix.install([
   {:jason, "~> 1.4"},
   {:opentelemetry, "~> 1.4"},
   {:opentelemetry_api, "~> 1.3"},
-  {:opentelemetry_exporter, "~> 1.7"},
-  {:opentelemetry_telemetry, "~> 1.1"}
+  {:opentelemetry_exporter, "~> 1.7"}
 ])
 
-# --- Bridge LightCDP telemetry to OpenTelemetry spans ---
+# --- Bridge LightCDP telemetry events to OpenTelemetry spans ---
 
 defmodule LightCDP.OtelBridge do
-  require OpenTelemetry.Tracer
-
-  @tracer_id __MODULE__
+  @tracer_id :light_cdp
 
   def setup do
     events = LightCDP.Telemetry.events()
@@ -40,54 +39,74 @@ defmodule LightCDP.OtelBridge do
     stop_events = Enum.filter(events, &match?([_, _, _, :stop], &1))
     exception_events = Enum.filter(events, &match?([_, _, _, :exception], &1))
 
-    :telemetry.attach_many("otel-light-cdp-start", start_events, &handle_start/4, nil)
-    :telemetry.attach_many("otel-light-cdp-stop", stop_events, &handle_stop/4, nil)
-    :telemetry.attach_many("otel-light-cdp-exception", exception_events, &handle_exception/4, nil)
+    :telemetry.attach_many("otel-start", start_events, &__MODULE__.handle_start/4, nil)
+    :telemetry.attach_many("otel-stop", stop_events, &__MODULE__.handle_stop/4, nil)
+    :telemetry.attach_many("otel-exception", exception_events, &__MODULE__.handle_exception/4, nil)
   end
 
-  def handle_start([_, module, operation, :start], %{system_time: start_time}, metadata, _) do
-    span_name = "#{module}.#{operation}"
+  def handle_start(event, _measurements, metadata, _) do
+    span_name = span_name(event)
+    attrs = to_attributes(metadata)
 
-    attributes =
-      metadata
-      |> Map.drop([:session_id])
-      |> Enum.flat_map(fn
-        {k, v} when is_binary(v) -> [{k, v}]
-        {k, v} when is_number(v) -> [{k, v}]
-        {k, v} when is_atom(v) -> [{k, to_string(v)}]
-        _ -> []
-      end)
+    tracer = :opentelemetry.get_tracer(@tracer_id)
+    ctx = :otel_ctx.get_current()
+    span_ctx = :otel_tracer.start_span(ctx, tracer, span_name, %{attributes: attrs})
+    new_ctx = :otel_tracer.set_current_span(ctx, span_ctx)
+    token = :otel_ctx.attach(new_ctx)
 
-    OpentelemetryTelemetry.start_telemetry_span(
-      @tracer_id,
-      span_name,
-      metadata,
-      %{start_time: start_time, attributes: attributes}
-    )
+    # Push token onto a stack so nested spans (page > connection) restore correctly
+    stack = Process.get(:otel_token_stack, [])
+    Process.put(:otel_token_stack, [token | stack])
   end
 
-  def handle_stop([_, _module, _operation, :stop], %{duration: duration}, metadata, _) do
-    OpentelemetryTelemetry.set_current_telemetry_span(@tracer_id, metadata)
+  def handle_stop(_event, %{duration: duration}, _metadata, _) do
+    span_ctx = :otel_tracer.current_span_ctx()
+    ms = System.convert_time_unit(duration, :native, :millisecond)
+    :otel_span.set_attribute(span_ctx, :duration_ms, ms)
+    :otel_span.end_span(span_ctx)
 
-    duration_ms = System.convert_time_unit(duration, :native, :millisecond)
-    OpenTelemetry.Tracer.set_attribute(:duration_ms, duration_ms)
+    case Process.get(:otel_token_stack, []) do
+      [token | rest] ->
+        :otel_ctx.detach(token)
+        Process.put(:otel_token_stack, rest)
 
-    OpentelemetryTelemetry.end_telemetry_span(@tracer_id, metadata)
+      [] ->
+        :ok
+    end
   end
 
-  def handle_exception([_, _module, _operation, :exception], _measurements, metadata, _) do
-    OpentelemetryTelemetry.set_current_telemetry_span(@tracer_id, metadata)
+  def handle_exception(_event, _measurements, metadata, _) do
+    span_ctx = :otel_tracer.current_span_ctx()
+    :otel_span.set_status(span_ctx, :error, inspect(metadata[:reason]))
+    :otel_span.end_span(span_ctx)
 
-    ctx = OpenTelemetry.Tracer.current_span_ctx()
+    case Process.get(:otel_token_stack, []) do
+      [token | rest] ->
+        :otel_ctx.detach(token)
+        Process.put(:otel_token_stack, rest)
 
-    OpenTelemetry.Span.set_status(ctx, OpenTelemetry.status(:error, inspect(metadata[:reason])))
+      [] ->
+        :ok
+    end
+  end
 
-    OpentelemetryTelemetry.end_telemetry_span(@tracer_id, metadata)
+  defp span_name([_, module, operation, _suffix]), do: "#{module}.#{operation}"
+
+  defp to_attributes(metadata) do
+    metadata
+    |> Map.drop([:session_id])
+    |> Enum.flat_map(fn
+      {k, v} when is_binary(v) -> [{k, v}]
+      {k, v} when is_integer(v) -> [{k, v}]
+      {k, v} when is_float(v) -> [{k, v}]
+      {k, v} when is_atom(v) -> [{k, to_string(v)}]
+      _ -> []
+    end)
   end
 end
 
 LightCDP.OtelBridge.setup()
-IO.puts("OpenTelemetry configured — exporting to http://localhost:4318\n")
+IO.puts("OpenTelemetry configured — traces will export to http://localhost:4318\n")
 
 # --- Same script as sample.exs ---
 
@@ -132,12 +151,12 @@ IO.puts("Found #{length(results)} results.")
 
 LightCDP.stop(session)
 
-# Flush spans before exit
+# Flush spans to Jaeger before exit
 try do
   :otel_tracer_provider.force_flush()
 catch
   _, _ -> :ok
 end
 
-Process.sleep(1_000)
-IO.puts("\nTraces exported. Open http://localhost:16686 → service 'light_cdp_sample'")
+Process.sleep(2_000)
+IO.puts("Traces exported. Open http://localhost:16686 → service 'light_cdp_sample'")
