@@ -57,10 +57,7 @@ pkill -f "lightpanda.*serve"
 
 Before committing, run the sanity check:
 ```
-mix format --check-formatted  # formatting
-mix compile --warnings-as-errors  # no warnings
-mix test  # all tests pass
-mix docs  # docs generate
+mix ci
 ```
 
 ## Architecture

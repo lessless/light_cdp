@@ -18,7 +18,10 @@ defmodule LightCDP.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
+  def cli do
+    [preferred_envs: [ci: :test]]
+  end
+
   def application do
     [
       extra_applications: [:logger]
@@ -62,7 +65,8 @@ defmodule LightCDP.MixProject do
 
   defp aliases do
     [
-      tidewave: "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 40001) end)'"
+      tidewave: "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 40001) end)'",
+      ci: ["format --check-formatted", "compile --warnings-as-errors", "test"]
     ]
   end
 end
