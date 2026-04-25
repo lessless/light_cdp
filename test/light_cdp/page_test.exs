@@ -139,34 +139,38 @@ defmodule LightCDP.PageTest do
   end
 
   describe "error handling" do
-    test "evaluate returns error for JS exceptions", %{page: page} do
-      assert {:error, _} = LightCDP.Page.evaluate(page, "throw new Error('boom')")
+    test "evaluate returns JavaScriptError for JS exceptions", %{page: page} do
+      assert {:error, %LightCDP.JavaScriptError{}} =
+               LightCDP.Page.evaluate(page, "throw new Error('boom')")
     end
 
-    test "click returns error for missing selector", %{page: page} do
+    test "click returns ElementNotFoundError for missing selector", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")
-      assert {:error, _} = LightCDP.Page.click(page, "#nonexistent")
+
+      assert {:error, %LightCDP.ElementNotFoundError{selector: "#nonexistent"}} =
+               LightCDP.Page.click(page, "#nonexistent")
     end
 
-    test "fill returns error for missing selector", %{page: page} do
+    test "fill returns ElementNotFoundError for missing selector", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")
-      assert {:error, _} = LightCDP.Page.fill(page, "#nonexistent", "value")
+
+      assert {:error, %LightCDP.ElementNotFoundError{selector: "#nonexistent"}} =
+               LightCDP.Page.fill(page, "#nonexistent", "value")
     end
   end
 
   describe "timeouts" do
-    test "navigate returns {:error, :timeout} with impossible timeout", %{page: page} do
-      result = LightCDP.Page.navigate(page, "https://example.com", timeout: 1)
-      assert result == {:error, :timeout}
+    test "navigate returns TimeoutError with impossible timeout", %{page: page} do
+      assert {:error, %LightCDP.TimeoutError{}} =
+               LightCDP.Page.navigate(page, "https://example.com", timeout: 1)
     end
 
-    test "wait_for_navigation returns {:error, :timeout} when no navigation occurs", %{page: page} do
-      result = LightCDP.Page.wait_for_navigation(page, fn -> :noop end, timeout: 100)
-      assert result == {:error, :timeout}
+    test "wait_for_navigation returns TimeoutError when no navigation occurs", %{page: page} do
+      assert {:error, %LightCDP.TimeoutError{}} =
+               LightCDP.Page.wait_for_navigation(page, fn -> :noop end, timeout: 100)
     end
 
     test "evaluate accepts timeout option", %{page: page} do
-      # Should succeed with generous timeout
       assert {:ok, 3} = LightCDP.Page.evaluate(page, "1 + 2", timeout: 5_000)
     end
 
@@ -198,9 +202,11 @@ defmodule LightCDP.PageTest do
       assert :ok = LightCDP.Page.wait_for_selector(page, "#delayed", timeout: 3_000)
     end
 
-    test "returns {:error, :timeout} when element never appears", %{page: page} do
+    test "returns TimeoutError when element never appears", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")
-      assert {:error, :timeout} = LightCDP.Page.wait_for_selector(page, "#never", timeout: 300)
+
+      assert {:error, %LightCDP.TimeoutError{}} =
+               LightCDP.Page.wait_for_selector(page, "#never", timeout: 300)
     end
   end
 

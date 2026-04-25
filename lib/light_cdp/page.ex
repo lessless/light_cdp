@@ -2,8 +2,13 @@ defmodule LightCDP.Page do
   @moduledoc """
   Page interactions via native CDP methods.
 
-  All functions return `{:ok, result}`, `:ok`, or `{:error, reason}`.
-  Nothing crashes on failure.
+  All functions return `{:ok, result}`, `:ok`, or `{:error, exception}` where
+  `exception` is one of:
+
+    * `%LightCDP.ElementNotFoundError{}` — selector matched no element
+    * `%LightCDP.TimeoutError{}` — operation exceeded its deadline
+    * `%LightCDP.JavaScriptError{}` — JS expression threw an exception
+    * `%LightCDP.CDPError{}` — CDP protocol error
 
   ## Native CDP methods used
 
@@ -83,7 +88,7 @@ defmodule LightCDP.Page do
 
       {:ok, "Example Domain"} = LightCDP.Page.evaluate(page, "document.title")
       {:ok, 42} = LightCDP.Page.evaluate(page, "21 * 2")
-      {:error, _} = LightCDP.Page.evaluate(page, "throw new Error('boom')")
+      {:error, %LightCDP.JavaScriptError{}} = LightCDP.Page.evaluate(page, "throw new Error('boom')")
   """
   def evaluate(%__MODULE__{conn: conn, session_id: sid}, expression, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
@@ -146,7 +151,7 @@ defmodule LightCDP.Page do
   ## Example
 
       :ok = LightCDP.Page.click(page, "#submit-btn")
-      {:error, "Element not found: #nope"} = LightCDP.Page.click(page, "#nope")
+      {:error, %LightCDP.ElementNotFoundError{selector: "#nope"}} = LightCDP.Page.click(page, "#nope")
   """
   def click(%__MODULE__{} = page, selector, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
@@ -242,7 +247,7 @@ defmodule LightCDP.Page do
 
   defp poll_selector(page, selector, interval, deadline) do
     if System.monotonic_time(:millisecond) > deadline do
-      {:error, :timeout}
+      {:error, LightCDP.TimeoutError.new(operation: :wait_for_selector)}
     else
       case query_selector(page, selector, 5_000) do
         {:ok, _node_id} ->
@@ -294,10 +299,16 @@ defmodule LightCDP.Page do
          {:ok, %{"nodeId" => node_id}} <-
            send_cdp(conn, sid, "DOM.querySelector", %{nodeId: root_id, selector: selector}, timeout) do
       if node_id == 0 do
-        {:error, "Element not found: #{selector}"}
+        {:error, LightCDP.ElementNotFoundError.new(selector)}
       else
         {:ok, node_id}
       end
+    else
+      {:error, %LightCDP.CDPError{}} ->
+        {:error, LightCDP.ElementNotFoundError.new(selector)}
+
+      other ->
+        other
     end
   end
 
@@ -373,10 +384,10 @@ defmodule LightCDP.Page do
   defp parse_evaluate_result(result) do
     case result do
       %{"exceptionDetails" => %{"exception" => %{"description" => desc}}} ->
-        {:error, desc}
+        {:error, LightCDP.JavaScriptError.new(desc)}
 
       %{"exceptionDetails" => details} ->
-        {:error, inspect(details)}
+        {:error, LightCDP.JavaScriptError.new(inspect(details))}
 
       %{"result" => %{"value" => value}} ->
         {:ok, value}

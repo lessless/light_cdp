@@ -23,7 +23,7 @@ defmodule LightCDP.Connection do
   Fetches the WebSocket URL from `{endpoint}/json/version`, then opens
   a WebSocket connection.
 
-  Returns `{:ok, pid}` or `{:error, reason}`.
+  Returns `{:ok, pid}` or `{:error, %LightCDP.ConnectionError{}}`.
   """
   def open(endpoint) do
     case Req.get(endpoint <> "/json/version", retry: false) do
@@ -35,10 +35,10 @@ defmodule LightCDP.Connection do
         })
 
       {:ok, resp} ->
-        {:error, {:unexpected_response, resp.status}}
+        {:error, LightCDP.ConnectionError.new({:unexpected_response, resp.status})}
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, LightCDP.ConnectionError.new(reason)}
     end
   end
 
@@ -53,7 +53,8 @@ defmodule LightCDP.Connection do
   @doc """
   Sends a CDP command and waits for the response.
 
-  Returns `{:ok, result}` or `{:error, reason}`.
+  Returns `{:ok, result}`, `{:error, %LightCDP.CDPError{}}`, or
+  `{:error, %LightCDP.TimeoutError{}}`.
 
   `session_id` is required for commands targeting a specific page/target
   (anything after `Target.attachToTarget`).
@@ -63,10 +64,16 @@ defmodule LightCDP.Connection do
     WebSockex.cast(pid, {:send_command, method, params, session_id, self(), ref})
 
     receive do
-      {:cdp_response, ^ref, result} -> {:ok, result}
-      {:cdp_error, ^ref, error} -> {:error, error}
+      {:cdp_response, ^ref, result} ->
+        {:ok, result}
+
+      {:cdp_error, ^ref, %{"code" => code, "message" => message}} ->
+        {:error, LightCDP.CDPError.new(code, message)}
+
+      {:cdp_error, ^ref, error} ->
+        {:error, LightCDP.CDPError.new(0, inspect(error))}
     after
-      timeout -> {:error, :timeout}
+      timeout -> {:error, LightCDP.TimeoutError.new(operation: method, timeout_ms: timeout)}
     end
   end
 
@@ -95,13 +102,13 @@ defmodule LightCDP.Connection do
   @doc """
   Blocks until the event registered with `register_event_waiter/2` fires.
 
-  Returns `{:ok, params}` or `{:error, :timeout}`.
+  Returns `{:ok, params}` or `{:error, %LightCDP.TimeoutError{}}`.
   """
   def await_event(ref, timeout \\ 15_000) do
     receive do
       {:cdp_event, ^ref, params} -> {:ok, params}
     after
-      timeout -> {:error, :timeout}
+      timeout -> {:error, LightCDP.TimeoutError.new(operation: :await_event, timeout_ms: timeout)}
     end
   end
 

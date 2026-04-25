@@ -72,7 +72,8 @@ defmodule LightCDP.CypressIntegrationTest do
     end
 
     test "returns error for JS exceptions", %{page: page} do
-      assert {:error, _} = LightCDP.Page.evaluate(page, "throw new Error('test error')")
+      assert {:error, %LightCDP.JavaScriptError{}} =
+               LightCDP.Page.evaluate(page, "throw new Error('test error')")
     end
   end
 
@@ -127,7 +128,8 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns error for missing element", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
-      assert {:error, _} = LightCDP.Page.click(page, "#nonexistent")
+      assert {:error, %LightCDP.ElementNotFoundError{selector: "#nonexistent"}} =
+               LightCDP.Page.click(page, "#nonexistent")
     end
   end
 
@@ -169,7 +171,8 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns error for missing element", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
-      assert {:error, _} = LightCDP.Page.fill(page, "#nope", "text")
+      assert {:error, %LightCDP.ElementNotFoundError{selector: "#nope"}} =
+               LightCDP.Page.fill(page, "#nope", "text")
     end
   end
 
@@ -211,7 +214,8 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns error for missing form", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
-      assert {:error, _} = LightCDP.Page.submit(page, "#missing-form")
+      assert {:error, %LightCDP.JavaScriptError{}} =
+               LightCDP.Page.submit(page, "#missing-form")
     end
   end
 
@@ -244,7 +248,8 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns timeout when no navigation occurs", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
-      assert {:error, :timeout} = LightCDP.Page.wait_for_navigation(page, fn -> :noop end, timeout: 200)
+      assert {:error, %LightCDP.TimeoutError{}} =
+               LightCDP.Page.wait_for_navigation(page, fn -> :noop end, timeout: 200)
     end
 
     test "short-circuits when callback errors", %{page: page} do
@@ -263,7 +268,8 @@ defmodule LightCDP.CypressIntegrationTest do
 
   describe "timeouts" do
     test "navigate times out with tiny timeout", %{page: page} do
-      assert {:error, :timeout} = LightCDP.Page.navigate(page, @base, timeout: 1)
+      assert {:error, %LightCDP.TimeoutError{}} =
+               LightCDP.Page.navigate(page, @base, timeout: 1)
     end
 
     test "evaluate works with explicit timeout", %{page: page} do
