@@ -1,9 +1,38 @@
 defmodule LightCDP.Page do
+  @moduledoc """
+  Page interactions via native CDP methods.
+
+  All functions return `{:ok, result}`, `:ok`, or `{:error, reason}`.
+  Nothing crashes on failure.
+
+  ## Native CDP methods used
+
+  | Function           | CDP methods                                                            |
+  |--------------------|------------------------------------------------------------------------|
+  | `click/3`          | `DOM.querySelector` -> `DOM.getBoxModel` -> `Input.dispatchMouseEvent` |
+  | `fill/4`           | `DOM.resolveNode` -> `Runtime.callFunctionOn` -> `Input.insertText`    |
+  | `content/1`        | `DOM.getDocument` -> `DOM.getOuterHTML`                                |
+  | `navigate/3`       | `Page.navigate` + `Page.loadEventFired` event                         |
+  | `evaluate/3`       | `Runtime.evaluate`                                                     |
+  | `url/1`            | `Runtime.evaluate` (no native equivalent)                              |
+  | `submit/4`         | `Runtime.evaluate` (no native equivalent for form submission)          |
+
+  ## Timeouts
+
+  All functions accept a `timeout:` option in milliseconds.
+
+  | Default        | Functions                                                |
+  |----------------|----------------------------------------------------------|
+  | 30,000 ms      | `navigate`, `wait_for_navigation`, `submit`              |
+  | 15,000 ms      | `evaluate`, `click`, `fill`, `wait_for_selector`         |
+  """
+
   defstruct [:conn, :session_id]
 
   @default_timeout 15_000
   @nav_timeout 30_000
 
+  @doc false
   def new(conn) do
     with {:ok, %{"targetId" => target_id}} <-
            LightCDP.Connection.send_command(conn, "Target.createTarget", %{url: "about:blank"}),
@@ -20,6 +49,17 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Navigates to `url` and waits for the page to load.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `30_000`)
+
+  ## Example
+
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+  """
   def navigate(%__MODULE__{conn: conn, session_id: sid}, url, opts \\ []) do
     timeout = opts[:timeout] || @nav_timeout
     wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")
@@ -32,6 +72,19 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Evaluates a JavaScript expression and returns the result.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `15_000`)
+
+  ## Examples
+
+      {:ok, "Example Domain"} = LightCDP.Page.evaluate(page, "document.title")
+      {:ok, 42} = LightCDP.Page.evaluate(page, "21 * 2")
+      {:error, _} = LightCDP.Page.evaluate(page, "throw new Error('boom')")
+  """
   def evaluate(%__MODULE__{conn: conn, session_id: sid}, expression, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
 
@@ -50,10 +103,26 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Returns the current page URL.
+
+  ## Example
+
+      {:ok, "https://example.com/"} = LightCDP.Page.url(page)
+  """
   def url(page) do
     evaluate(page, "window.location.href")
   end
 
+  @doc """
+  Returns the full page HTML including doctype.
+
+  Uses native `DOM.getOuterHTML` instead of JavaScript.
+
+  ## Example
+
+      {:ok, html} = LightCDP.Page.content(page)
+  """
   def content(%__MODULE__{conn: conn, session_id: sid}) do
     with {:ok, %{"root" => %{"nodeId" => root_id}}} <-
            send_cdp(conn, sid, "DOM.getDocument"),
@@ -63,6 +132,22 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Clicks an element matching `selector`.
+
+  Uses native CDP: finds the element via `DOM.querySelector`, computes its
+  center point from `DOM.getBoxModel`, and dispatches mouse events via
+  `Input.dispatchMouseEvent`.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `15_000`)
+
+  ## Example
+
+      :ok = LightCDP.Page.click(page, "#submit-btn")
+      {:error, "Element not found: #nope"} = LightCDP.Page.click(page, "#nope")
+  """
   def click(%__MODULE__{} = page, selector, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
 
@@ -72,6 +157,21 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Fills an input element matching `selector` with `value`.
+
+  Uses native CDP: resolves the DOM node, focuses it via
+  `Runtime.callFunctionOn`, clears existing content, then types
+  via `Input.insertText`.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `15_000`)
+
+  ## Example
+
+      :ok = LightCDP.Page.fill(page, "#email", "user@example.com")
+  """
   def fill(%__MODULE__{} = page, selector, value, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
 
@@ -84,6 +184,25 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Fills form fields, submits the form, and waits for navigation.
+
+  `fields` is a map of `%{selector => value}` pairs to fill before submitting.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `30_000`)
+
+  ## Example
+
+      :ok = LightCDP.Page.submit(page, "#login-form", %{
+        "#email" => "user@example.com",
+        "#password" => "secret"
+      })
+
+      # Submit with no fields
+      :ok = LightCDP.Page.submit(page, "form")
+  """
   def submit(page, form_selector, fields \\ %{}, opts \\ []) do
     with :ok <- fill_fields(page, fields, opts) do
       wait_for_navigation(page, fn ->
@@ -98,6 +217,21 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Polls the DOM until an element matching `selector` appears.
+
+  Returns `:ok` when found, `{:error, :timeout}` if it doesn't appear
+  within the timeout.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `15_000`)
+    * `:interval` - polling interval in milliseconds (default: `100`)
+
+  ## Example
+
+      :ok = LightCDP.Page.wait_for_selector(page, ".search-results", timeout: 5_000)
+  """
   def wait_for_selector(page, selector, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
     interval = opts[:interval] || 100
@@ -111,7 +245,9 @@ defmodule LightCDP.Page do
       {:error, :timeout}
     else
       case query_selector(page, selector, 5_000) do
-        {:ok, _node_id} -> :ok
+        {:ok, _node_id} ->
+          :ok
+
         {:error, _} ->
           Process.sleep(interval)
           poll_selector(page, selector, interval, deadline)
@@ -119,6 +255,21 @@ defmodule LightCDP.Page do
     end
   end
 
+  @doc """
+  Registers an event waiter, calls `fun`, then waits for a `Page.loadEventFired` event.
+
+  If `fun` returns `{:error, _}`, short-circuits immediately without waiting.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `30_000`)
+
+  ## Example
+
+      :ok = LightCDP.Page.wait_for_navigation(page, fn ->
+        LightCDP.Page.click(page, "a.next-page")
+      end)
+  """
   def wait_for_navigation(%__MODULE__{conn: conn}, fun, opts \\ []) do
     timeout = opts[:timeout] || @nav_timeout
     wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")

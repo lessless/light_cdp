@@ -1,4 +1,32 @@
 defmodule LightCDP.Server do
+  @moduledoc """
+  Manages the Lightpanda OS process via `erlexec`.
+
+  Starts the binary with `serve` mode, waits for the CDP server to be ready,
+  and provides clean shutdown via SIGTERM.
+
+  Typically not used directly — `LightCDP.start/1` handles this.
+
+  ## Binary path resolution
+
+  1. `start(binary: "/path/to/lightpanda")`
+  2. `Application.get_env(:light_cdp, :lightpanda_path)`
+  3. `~/.local/bin/lightpanda`
+  """
+
+  @doc """
+  Starts a Lightpanda CDP server.
+
+  Returns `{:ok, server, endpoint}` where `server` is passed to `stop/1`
+  and `endpoint` is the HTTP base URL (e.g. `"http://127.0.0.1:9222"`).
+
+  ## Options
+
+    * `:binary` - path to the Lightpanda binary
+    * `:port` - CDP server port (default: `9222`)
+    * `:host` - CDP server host (default: `"127.0.0.1"`)
+    * `:timeout` - Lightpanda inactivity timeout in seconds (default: `30`)
+  """
   def start(opts \\ []) do
     binary = opts[:binary] || default_binary()
     port_number = opts[:port] || 9222
@@ -20,6 +48,9 @@ defmodule LightCDP.Server do
     {:ok, {pid, os_pid}, endpoint}
   end
 
+  @doc """
+  Stops a Lightpanda instance by sending SIGTERM to the OS process.
+  """
   def stop({_pid, os_pid}) do
     :exec.kill(os_pid, :sigterm)
     :ok

@@ -1,6 +1,30 @@
 defmodule LightCDP.Connection do
+  @moduledoc """
+  WebSocket client for the Chrome DevTools Protocol.
+
+  Manages a single WebSocket connection to a CDP endpoint, dispatching
+  commands with auto-incrementing IDs and routing responses/events back
+  to callers.
+
+  Typically not used directly — `LightCDP.start/1` handles connection setup.
+
+  ## Low-level usage
+
+      {:ok, conn} = LightCDP.Connection.open("http://127.0.0.1:9222")
+      {:ok, result} = LightCDP.Connection.send_command(conn, "Browser.getVersion")
+      LightCDP.Connection.close(conn)
+  """
+
   use WebSockex
 
+  @doc """
+  Connects to a CDP endpoint.
+
+  Fetches the WebSocket URL from `{endpoint}/json/version`, then opens
+  a WebSocket connection.
+
+  Returns `{:ok, pid}` or `{:error, reason}`.
+  """
   def open(endpoint) do
     case Req.get(endpoint <> "/json/version", retry: false) do
       {:ok, %{body: %{"webSocketDebuggerUrl" => ws_url}}} ->
@@ -18,11 +42,22 @@ defmodule LightCDP.Connection do
     end
   end
 
+  @doc """
+  Closes the WebSocket connection.
+  """
   def close(pid) do
     Process.exit(pid, :normal)
     :ok
   end
 
+  @doc """
+  Sends a CDP command and waits for the response.
+
+  Returns `{:ok, result}` or `{:error, reason}`.
+
+  `session_id` is required for commands targeting a specific page/target
+  (anything after `Target.attachToTarget`).
+  """
   def send_command(pid, method, params \\ %{}, timeout \\ 15_000, session_id \\ nil) do
     ref = make_ref()
     WebSockex.cast(pid, {:send_command, method, params, session_id, self(), ref})
@@ -35,17 +70,33 @@ defmodule LightCDP.Connection do
     end
   end
 
+  @doc """
+  Waits for a CDP event by method name.
+
+  Combines `register_event_waiter/2` and `await_event/2`.
+  """
   def wait_for_event(pid, method, timeout \\ 15_000) do
     ref = register_event_waiter(pid, method)
     await_event(ref, timeout)
   end
 
+  @doc """
+  Registers a waiter for a CDP event. Returns a ref to pass to `await_event/2`.
+
+  Register **before** triggering the action that produces the event to
+  avoid race conditions.
+  """
   def register_event_waiter(pid, method) do
     ref = make_ref()
     WebSockex.cast(pid, {:wait_event, method, self(), ref})
     ref
   end
 
+  @doc """
+  Blocks until the event registered with `register_event_waiter/2` fires.
+
+  Returns `{:ok, params}` or `{:error, :timeout}`.
+  """
   def await_event(ref, timeout \\ 15_000) do
     receive do
       {:cdp_event, ^ref, params} -> {:ok, params}

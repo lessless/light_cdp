@@ -24,7 +24,8 @@ defmodule LightCDP.MixProject do
       {:websockex, "~> 0.4"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
-      {:erlexec, "~> 2.0"}
+      {:erlexec, "~> 2.0"},
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false}
     ]
   end
 end
