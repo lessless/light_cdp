@@ -47,6 +47,7 @@ API docs are in the source modules — generate locally with `mix docs`, or read
 - `LightCDP.Server` — Lightpanda process management
 - `LightCDP.Protocol` — CDP message encoding/decoding
 - `LightCDP.Telemetry` — telemetry event definitions and default logger
+- `LightCDP.Telemetry.OtelBridge` — optional OpenTelemetry span bridge
 
 ## How it works
 

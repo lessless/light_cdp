@@ -172,6 +172,35 @@ defmodule LightCDP.TelemetryTest do
     end
   end
 
+  describe "LightCDP.Telemetry.OtelBridge" do
+    test "span_name includes CDP method for connection commands" do
+      assert LightCDP.Telemetry.OtelBridge.span_name([:light_cdp, :connection, :command, :start], %{method: "DOM.querySelector"}) ==
+               "connection.command DOM.querySelector"
+    end
+
+    test "span_name uses module.operation for page events" do
+      assert LightCDP.Telemetry.OtelBridge.span_name([:light_cdp, :page, :navigate, :start], %{}) ==
+               "page.navigate"
+    end
+
+    test "setup/0 attaches telemetry handlers" do
+      :ok = LightCDP.Telemetry.OtelBridge.setup()
+      handlers = :telemetry.list_handlers([:light_cdp, :page, :navigate])
+      handler_ids = Enum.map(handlers, & &1.id)
+      assert "light-cdp-otel-start" in handler_ids
+      # Clean up
+      LightCDP.Telemetry.OtelBridge.teardown()
+    end
+
+    test "teardown/0 removes handlers" do
+      :ok = LightCDP.Telemetry.OtelBridge.setup()
+      :ok = LightCDP.Telemetry.OtelBridge.teardown()
+      handlers = :telemetry.list_handlers([:light_cdp, :page, :navigate])
+      handler_ids = Enum.map(handlers, & &1.id)
+      refute "light-cdp-otel-start" in handler_ids
+    end
+  end
+
   describe "LightCDP.Telemetry" do
     test "events/0 returns all event names" do
       events = LightCDP.Telemetry.events()
