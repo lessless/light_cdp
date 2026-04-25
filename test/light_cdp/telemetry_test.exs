@@ -93,6 +93,34 @@ defmodule LightCDP.TelemetryTest do
                       %{duration: _}, _}
     end
 
+    test "fill emits step events for focus, clear, insert", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+
+      {:ok, _} =
+        LightCDP.Page.evaluate(page, "document.body.innerHTML = '<input id=\"s\">'")
+
+      attach_telemetry([[:light_cdp, :page, :step]])
+
+      :ok = LightCDP.Page.fill(page, "#s", "test")
+
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :focus}}
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :clear}}
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :insert}}
+    end
+
+    test "click emits step events for query, locate, press, release", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+
+      attach_telemetry([[:light_cdp, :page, :step]])
+
+      LightCDP.Page.click(page, "h1")
+
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :query, selector: "h1"}}
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :locate}}
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :press}}
+      assert_receive {:telemetry, [:light_cdp, :page, :step], _, %{step: :release}}
+    end
+
     test "fill emits start and stop without value", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")
 

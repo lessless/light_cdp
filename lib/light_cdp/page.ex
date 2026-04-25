@@ -379,7 +379,13 @@ defmodule LightCDP.Page do
 
   # --- Native CDP helpers ---
 
-  defp query_selector(%{conn: conn, session_id: sid}, selector, timeout) do
+  defp emit_step(step, meta \\ %{}) do
+    :telemetry.execute([:light_cdp, :page, :step], %{}, Map.put(meta, :step, step))
+  end
+
+  defp query_selector(%{conn: conn, session_id: sid} = _page, selector, timeout) do
+    emit_step(:query, %{selector: selector})
+
     with {:ok, %{"root" => %{"nodeId" => root_id}}} <-
            send_cdp(conn, sid, "DOM.getDocument", %{}, timeout),
          {:ok, %{"nodeId" => node_id}} <-
@@ -402,29 +408,22 @@ defmodule LightCDP.Page do
     with {:ok, %{"model" => %{"content" => quad}}} <-
            send_cdp(conn, sid, "DOM.getBoxModel", %{nodeId: node_id}, timeout) do
       [x1, y1, x2, y2, x3, y3, x4, y4] = quad
-      {:ok, {(x1 + x2 + x3 + x4) / 4, (y1 + y2 + y3 + y4) / 4}}
+      x = (x1 + x2 + x3 + x4) / 4
+      y = (y1 + y2 + y3 + y4) / 4
+      emit_step(:locate, %{x: x, y: y})
+      {:ok, {x, y}}
     end
   end
 
   defp dispatch_click(%{conn: conn, session_id: sid}, x, y, timeout) do
     mouse = fn type ->
-      send_cdp(
-        conn,
-        sid,
-        "Input.dispatchMouseEvent",
-        %{
-          type: type,
-          x: x,
-          y: y,
-          button: "left",
-          clickCount: 1
-        },
-        timeout
-      )
+      send_cdp(conn, sid, "Input.dispatchMouseEvent", %{
+        type: type, x: x, y: y, button: "left", clickCount: 1
+      }, timeout)
     end
 
-    with {:ok, _} <- mouse.("mousePressed"),
-         {:ok, _} <- mouse.("mouseReleased") do
+    with {:ok, _} <- (emit_step(:press); mouse.("mousePressed")),
+         {:ok, _} <- (emit_step(:release); mouse.("mouseReleased")) do
       :ok
     end
   end
@@ -437,38 +436,32 @@ defmodule LightCDP.Page do
   end
 
   defp focus_element(%{conn: conn, session_id: sid}, object_id, timeout) do
+    emit_step(:focus)
+
     with {:ok, _} <-
-           send_cdp(
-             conn,
-             sid,
-             "Runtime.callFunctionOn",
-             %{
-               objectId: object_id,
-               functionDeclaration: "function() { this.focus(); }"
-             },
-             timeout
-           ) do
+           send_cdp(conn, sid, "Runtime.callFunctionOn", %{
+             objectId: object_id,
+             functionDeclaration: "function() { this.focus(); }"
+           }, timeout) do
       :ok
     end
   end
 
   defp clear_value(%{conn: conn, session_id: sid}, object_id, timeout) do
+    emit_step(:clear)
+
     with {:ok, _} <-
-           send_cdp(
-             conn,
-             sid,
-             "Runtime.callFunctionOn",
-             %{
-               objectId: object_id,
-               functionDeclaration: "function() { this.value = ''; }"
-             },
-             timeout
-           ) do
+           send_cdp(conn, sid, "Runtime.callFunctionOn", %{
+             objectId: object_id,
+             functionDeclaration: "function() { this.value = ''; }"
+           }, timeout) do
       :ok
     end
   end
 
   defp insert_text(%{conn: conn, session_id: sid}, value, timeout) do
+    emit_step(:insert, %{value_length: byte_size(value)})
+
     with {:ok, _} <- send_cdp(conn, sid, "Input.insertText", %{text: value}, timeout) do
       :ok
     end

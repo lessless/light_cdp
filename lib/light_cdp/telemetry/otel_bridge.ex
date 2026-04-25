@@ -46,6 +46,7 @@ defmodule LightCDP.Telemetry.OtelBridge do
   @start_id "light-cdp-otel-start"
   @stop_id "light-cdp-otel-stop"
   @exception_id "light-cdp-otel-exception"
+  @step_id "light-cdp-otel-step"
 
   @doc """
   Attaches telemetry handlers that create OpenTelemetry spans.
@@ -58,6 +59,7 @@ defmodule LightCDP.Telemetry.OtelBridge do
 
     :telemetry.attach_many(@start_id, start_events, &__MODULE__.handle_start/4, nil)
     :telemetry.attach_many(@stop_id, stop_events, &__MODULE__.handle_stop/4, nil)
+    :telemetry.attach(@step_id, [:light_cdp, :page, :step], &__MODULE__.handle_step/4, nil)
     :telemetry.attach_many(@exception_id, exception_events, &__MODULE__.handle_exception/4, nil)
     :ok
   end
@@ -69,6 +71,7 @@ defmodule LightCDP.Telemetry.OtelBridge do
     :telemetry.detach(@start_id)
     :telemetry.detach(@stop_id)
     :telemetry.detach(@exception_id)
+    :telemetry.detach(@step_id)
     :ok
   end
 
@@ -115,6 +118,13 @@ defmodule LightCDP.Telemetry.OtelBridge do
     :otel_span.set_attribute(span_ctx, :duration_ms, ms)
     :otel_span.end_span(span_ctx)
     pop_token()
+  end
+
+  @doc false
+  def handle_step(_event, _measurements, %{step: step} = metadata, _) do
+    span_ctx = :otel_tracer.current_span_ctx()
+    attrs = metadata |> Map.delete(:step) |> to_attributes()
+    :otel_span.add_event(span_ctx, to_string(step), attrs)
   end
 
   @doc false

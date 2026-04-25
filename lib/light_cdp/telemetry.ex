@@ -49,7 +49,7 @@ defmodule LightCDP.Telemetry do
         [:light_cdp, :connection, :command, suffix]
       end
 
-    page_events ++ command_events
+    page_events ++ command_events ++ [[:light_cdp, :page, :step]]
   end
 
   @doc """
