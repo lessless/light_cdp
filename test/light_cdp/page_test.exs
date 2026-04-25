@@ -114,6 +114,28 @@ defmodule LightCDP.PageTest do
     end
   end
 
+  describe "timeouts" do
+    test "navigate returns {:error, :timeout} with impossible timeout", %{page: page} do
+      result = LightCDP.Page.navigate(page, "https://example.com", timeout: 1)
+      assert result == {:error, :timeout}
+    end
+
+    test "wait_for_navigation returns {:error, :timeout} when no navigation occurs", %{page: page} do
+      result = LightCDP.Page.wait_for_navigation(page, fn -> :noop end, timeout: 100)
+      assert result == {:error, :timeout}
+    end
+
+    test "evaluate accepts timeout option", %{page: page} do
+      # Should succeed with generous timeout
+      assert {:ok, 3} = LightCDP.Page.evaluate(page, "1 + 2", timeout: 5_000)
+    end
+
+    test "default timeouts work for normal operations", %{page: page} do
+      assert :ok = LightCDP.Page.navigate(page, "https://example.com")
+      assert {:ok, _} = LightCDP.Page.evaluate(page, "1 + 1")
+    end
+  end
+
   describe "wait_for_navigation/2" do
     test "waits for navigation after a JS-triggered redirect", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")

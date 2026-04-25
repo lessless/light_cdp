@@ -33,4 +33,8 @@ defmodule LightCDP.ConnectionTest do
 
     LightCDP.Connection.close(conn)
   end
+
+  test "open returns error for unreachable endpoint" do
+    assert {:error, _} = LightCDP.Connection.open("http://127.0.0.1:19999")
+  end
 end

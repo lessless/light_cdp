@@ -2,14 +2,20 @@ defmodule LightCDP.Connection do
   use WebSockex
 
   def open(endpoint) do
-    %{body: %{"webSocketDebuggerUrl" => ws_url}} =
-      Req.get!(endpoint <> "/json/version")
+    case Req.get(endpoint <> "/json/version", retry: false) do
+      {:ok, %{body: %{"webSocketDebuggerUrl" => ws_url}}} ->
+        WebSockex.start_link(ws_url, __MODULE__, %{
+          id: 1,
+          pending: %{},
+          event_waiters: %{}
+        })
 
-    WebSockex.start_link(ws_url, __MODULE__, %{
-      id: 1,
-      pending: %{},
-      event_waiters: %{}
-    })
+      {:ok, resp} ->
+        {:error, {:unexpected_response, resp.status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   def close(pid) do
