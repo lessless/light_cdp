@@ -29,13 +29,7 @@ IO.puts("Searching for 'lightpanda'...")
 
 # Wait for search results to load
 IO.puts("Waiting for results...")
-
-Enum.reduce_while(1..50, nil, fn _, _ ->
-  case LightCDP.Page.evaluate(page, "!!document.querySelector('.Story_container')") do
-    {:ok, true} -> {:halt, :ok}
-    _ -> Process.sleep(100); {:cont, nil}
-  end
-end)
+:ok = LightCDP.Page.wait_for_selector(page, ".Story_container", timeout: 5_000)
 
 # Extract structured data from search results
 IO.puts("Extracting results...\n")

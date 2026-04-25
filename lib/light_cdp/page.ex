@@ -98,6 +98,27 @@ defmodule LightCDP.Page do
     end
   end
 
+  def wait_for_selector(page, selector, opts \\ []) do
+    timeout = opts[:timeout] || @default_timeout
+    interval = opts[:interval] || 100
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    poll_selector(page, selector, interval, deadline)
+  end
+
+  defp poll_selector(page, selector, interval, deadline) do
+    if System.monotonic_time(:millisecond) > deadline do
+      {:error, :timeout}
+    else
+      case query_selector(page, selector, 5_000) do
+        {:ok, _node_id} -> :ok
+        {:error, _} ->
+          Process.sleep(interval)
+          poll_selector(page, selector, interval, deadline)
+      end
+    end
+  end
+
   def wait_for_navigation(%__MODULE__{conn: conn}, fun, opts \\ []) do
     timeout = opts[:timeout] || @nav_timeout
     wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")

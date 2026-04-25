@@ -176,6 +176,34 @@ defmodule LightCDP.PageTest do
     end
   end
 
+  describe "wait_for_selector/3" do
+    test "returns :ok when element already exists", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+      assert :ok = LightCDP.Page.wait_for_selector(page, "h1")
+    end
+
+    test "waits for element to appear", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+
+      # Schedule element to appear after 300ms
+      {:ok, _} =
+        LightCDP.Page.evaluate(page, """
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.id = 'delayed';
+          document.body.appendChild(el);
+        }, 300);
+        """)
+
+      assert :ok = LightCDP.Page.wait_for_selector(page, "#delayed", timeout: 3_000)
+    end
+
+    test "returns {:error, :timeout} when element never appears", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+      assert {:error, :timeout} = LightCDP.Page.wait_for_selector(page, "#never", timeout: 300)
+    end
+  end
+
   describe "wait_for_navigation/2" do
     test "waits for navigation after a JS-triggered redirect", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")
