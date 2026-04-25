@@ -114,10 +114,9 @@ defmodule HNSearch do
   require OpenTelemetry.Tracer
 
   def run do
-    {:ok, session} = LightCDP.start()
-    {:ok, page} = LightCDP.new_page(session)
-
     OpenTelemetry.Tracer.with_span "hn_search", %{attributes: [query: "lightpanda"]} do
+      {:ok, session} = LightCDP.start()
+      {:ok, page} = LightCDP.new_page(session)
       IO.puts("Navigating to Hacker News...")
       :ok = LightCDP.Page.navigate(page, "https://news.ycombinator.com/")
 
@@ -153,9 +152,9 @@ defmodule HNSearch do
       end
 
       IO.puts("Found #{length(results)} results.")
-    end
 
-    LightCDP.stop(session)
+      LightCDP.stop(session)
+    end
   end
 end
 
