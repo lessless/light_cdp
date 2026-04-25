@@ -37,11 +37,11 @@ defmodule LightCDP.TelemetryTest do
 
       {:ok, _} = LightCDP.Connection.send_command(conn, "Browser.getVersion")
 
-      assert_receive {:telemetry, [:light_cdp, :connection, :command, :start],
-                      %{system_time: _}, %{method: "Browser.getVersion"}}
+      assert_receive {:telemetry, [:light_cdp, :connection, :command, :start], %{system_time: _},
+                      %{method: "Browser.getVersion"}}
 
-      assert_receive {:telemetry, [:light_cdp, :connection, :command, :stop],
-                      %{duration: _}, %{method: "Browser.getVersion"}}
+      assert_receive {:telemetry, [:light_cdp, :connection, :command, :stop], %{duration: _},
+                      %{method: "Browser.getVersion"}}
     end
   end
 
@@ -54,11 +54,10 @@ defmodule LightCDP.TelemetryTest do
 
       :ok = LightCDP.Page.navigate(page, "https://example.com")
 
-      assert_receive {:telemetry, [:light_cdp, :page, :navigate, :start],
-                      %{system_time: _}, %{url: "https://example.com"}}
+      assert_receive {:telemetry, [:light_cdp, :page, :navigate, :start], %{system_time: _},
+                      %{url: "https://example.com"}}
 
-      assert_receive {:telemetry, [:light_cdp, :page, :navigate, :stop],
-                      %{duration: _}, %{url: "https://example.com"}}
+      assert_receive {:telemetry, [:light_cdp, :page, :navigate, :stop], %{duration: _}, %{url: "https://example.com"}}
     end
 
     test "evaluate emits start and stop", %{page: page} do
@@ -69,11 +68,9 @@ defmodule LightCDP.TelemetryTest do
 
       {:ok, 3} = LightCDP.Page.evaluate(page, "1 + 2")
 
-      assert_receive {:telemetry, [:light_cdp, :page, :evaluate, :start],
-                      _, %{expression: "1 + 2"}}
+      assert_receive {:telemetry, [:light_cdp, :page, :evaluate, :start], _, %{expression: "1 + 2"}}
 
-      assert_receive {:telemetry, [:light_cdp, :page, :evaluate, :stop],
-                      %{duration: _}, _}
+      assert_receive {:telemetry, [:light_cdp, :page, :evaluate, :stop], %{duration: _}, _}
     end
 
     test "click emits start and stop", %{page: page} do
@@ -86,11 +83,9 @@ defmodule LightCDP.TelemetryTest do
 
       LightCDP.Page.click(page, "h1")
 
-      assert_receive {:telemetry, [:light_cdp, :page, :click, :start],
-                      _, %{selector: "h1"}}
+      assert_receive {:telemetry, [:light_cdp, :page, :click, :start], _, %{selector: "h1"}}
 
-      assert_receive {:telemetry, [:light_cdp, :page, :click, :stop],
-                      %{duration: _}, _}
+      assert_receive {:telemetry, [:light_cdp, :page, :click, :stop], %{duration: _}, _}
     end
 
     test "fill emits step events for focus, clear, insert", %{page: page} do
@@ -134,14 +129,12 @@ defmodule LightCDP.TelemetryTest do
 
       :ok = LightCDP.Page.fill(page, "#x", "secret")
 
-      assert_receive {:telemetry, [:light_cdp, :page, :fill, :start],
-                      _, metadata}
+      assert_receive {:telemetry, [:light_cdp, :page, :fill, :start], _, metadata}
 
       assert metadata.selector == "#x"
       refute Map.has_key?(metadata, :value)
 
-      assert_receive {:telemetry, [:light_cdp, :page, :fill, :stop],
-                      %{duration: _}, _}
+      assert_receive {:telemetry, [:light_cdp, :page, :fill, :stop], %{duration: _}, _}
     end
 
     test "screenshot emits start and stop", %{page: page} do
@@ -192,17 +185,17 @@ defmodule LightCDP.TelemetryTest do
 
       :ok = LightCDP.Page.wait_for_selector(page, "h1")
 
-      assert_receive {:telemetry, [:light_cdp, :page, :wait_for_selector, :start],
-                      _, %{selector: "h1"}}
+      assert_receive {:telemetry, [:light_cdp, :page, :wait_for_selector, :start], _, %{selector: "h1"}}
 
-      assert_receive {:telemetry, [:light_cdp, :page, :wait_for_selector, :stop],
-                      %{duration: _}, _}
+      assert_receive {:telemetry, [:light_cdp, :page, :wait_for_selector, :stop], %{duration: _}, _}
     end
   end
 
   describe "LightCDP.Telemetry.OtelBridge" do
     test "span_name includes CDP method for connection commands" do
-      assert LightCDP.Telemetry.OtelBridge.span_name([:light_cdp, :connection, :command, :start], %{method: "DOM.querySelector"}) ==
+      assert LightCDP.Telemetry.OtelBridge.span_name([:light_cdp, :connection, :command, :start], %{
+               method: "DOM.querySelector"
+             }) ==
                "connection.command DOM.querySelector"
     end
 

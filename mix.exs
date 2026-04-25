@@ -62,8 +62,7 @@ defmodule LightCDP.MixProject do
 
   defp aliases do
     [
-      tidewave:
-        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 40001) end)'"
+      tidewave: "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 40001) end)'"
     ]
   end
 end

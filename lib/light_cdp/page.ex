@@ -417,9 +417,19 @@ defmodule LightCDP.Page do
 
   defp dispatch_click(%{conn: conn, session_id: sid}, x, y, timeout) do
     mouse = fn type ->
-      send_cdp(conn, sid, "Input.dispatchMouseEvent", %{
-        type: type, x: x, y: y, button: "left", clickCount: 1
-      }, timeout)
+      send_cdp(
+        conn,
+        sid,
+        "Input.dispatchMouseEvent",
+        %{
+          type: type,
+          x: x,
+          y: y,
+          button: "left",
+          clickCount: 1
+        },
+        timeout
+      )
     end
 
     emit_step(:press)
@@ -444,10 +454,16 @@ defmodule LightCDP.Page do
     emit_step(:focus)
 
     with {:ok, _} <-
-           send_cdp(conn, sid, "Runtime.callFunctionOn", %{
-             objectId: object_id,
-             functionDeclaration: "function() { this.focus(); }"
-           }, timeout) do
+           send_cdp(
+             conn,
+             sid,
+             "Runtime.callFunctionOn",
+             %{
+               objectId: object_id,
+               functionDeclaration: "function() { this.focus(); }"
+             },
+             timeout
+           ) do
       :ok
     end
   end
@@ -456,10 +472,16 @@ defmodule LightCDP.Page do
     emit_step(:clear)
 
     with {:ok, _} <-
-           send_cdp(conn, sid, "Runtime.callFunctionOn", %{
-             objectId: object_id,
-             functionDeclaration: "function() { this.value = ''; }"
-           }, timeout) do
+           send_cdp(
+             conn,
+             sid,
+             "Runtime.callFunctionOn",
+             %{
+               objectId: object_id,
+               functionDeclaration: "function() { this.value = ''; }"
+             },
+             timeout
+           ) do
       :ok
     end
   end
