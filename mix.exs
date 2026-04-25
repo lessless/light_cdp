@@ -8,7 +8,10 @@ defmodule LightCDP.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      docs: docs()
+      docs: docs(),
+      description: "Minimal CDP (Chrome DevTools Protocol) client for Lightpanda. No Node.js required.",
+      package: package(),
+      source_url: "https://github.com/lessless/light_cdp"
     ]
   end
 
@@ -20,9 +23,17 @@ defmodule LightCDP.MixProject do
   end
 
   # Run "mix help deps" to learn about dependencies.
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/lessless/light_cdp"}
+    ]
+  end
+
   defp docs do
     [
-      main: "LightCDP"
+      main: "LightCDP",
+      source_url: "https://github.com/lessless/light_cdp"
     ]
   end
 
