@@ -42,10 +42,11 @@ This places the binary at `~/.local/bin/lightpanda`, which is where LightCDP loo
 API docs are in the source modules — generate locally with `mix docs`, or read the `@doc` attributes directly:
 
 - `LightCDP` — start/stop sessions, create pages
-- `LightCDP.Page` — navigate, evaluate, click, fill, submit, wait_for_selector, wait_for_navigation
+- `LightCDP.Page` — page interactions and DOM manipulation
 - `LightCDP.Connection` — low-level WebSocket CDP client
 - `LightCDP.Server` — Lightpanda process management
 - `LightCDP.Protocol` — CDP message encoding/decoding
+- `LightCDP.Telemetry` — telemetry event definitions and default logger
 
 ## How it works
 
