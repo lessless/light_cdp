@@ -6,12 +6,28 @@ defmodule LightCDP.Telemetry.OtelBridge do
   Does not depend on `opentelemetry_telemetry` — uses the Erlang OTel API
   directly to manage span context via a process dictionary token stack.
 
-  ## Usage
+  ## Setup
 
+  In an OTP application, call `setup/0` from your `Application.start/2` callback:
+
+      defmodule MyApp.Application do
+        use Application
+
+        def start(_type, _args) do
+          LightCDP.Telemetry.OtelBridge.setup()
+
+          children = [...]
+          Supervisor.start_link(children, strategy: :one_for_one)
+        end
+      end
+
+  In a script, call it after `Mix.install`:
+
+      Mix.install([{:light_cdp, "~> 0.1"}, {:opentelemetry, "~> 1.4"}, ...])
       LightCDP.Telemetry.OtelBridge.setup()
 
-      # All LightCDP page operations now produce OTel spans.
-      # Wrap your workflow in a root span for a single trace:
+  All LightCDP page operations will then produce OTel spans. Wrap your
+  workflow in a root span for a single trace:
 
       require OpenTelemetry.Tracer
       OpenTelemetry.Tracer.with_span "my_workflow" do
