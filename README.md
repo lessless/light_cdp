@@ -24,7 +24,7 @@ Add `light_cdp` to your dependencies:
 ```elixir
 def deps do
   [
-    {:light_cdp, github: "lessless/light_cdp"}
+    {:light_cdp, "~> 0.2"}
   ]
 end
 ```
