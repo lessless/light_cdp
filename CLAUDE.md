@@ -19,6 +19,10 @@ Follow Beck's four rules of simple design (https://martinfowler.com/bliki/BeckDe
 
 When in doubt, delete code rather than add it.
 
+## Documentation
+
+All public functions MUST have `@doc` with a description, options (if any), and at least one example. All public modules MUST have `@moduledoc`. When changing a function's behavior or return type, update its `@doc` in the same commit. Run `mix docs` to verify.
+
 ## Running tests
 
 ```
@@ -36,11 +40,11 @@ pkill -f "lightpanda.*serve"
 
 - `LightCDP` — top-level API (start/stop/new_page)
 - `LightCDP.Connection` — WebSocket CDP client (WebSockex)
-- `LightCDP.Page` — page interactions (navigate, evaluate, click, fill, submit)
+- `LightCDP.Page` — page interactions (navigate, evaluate, click, fill, submit, wait_for_selector, wait_for_navigation)
 - `LightCDP.Protocol` — JSON encode/decode for CDP messages
 - `LightCDP.Server` — Lightpanda process management (erlexec)
 
-Page operations use native CDP methods (DOM.querySelector, Input.dispatchMouseEvent, Input.insertText) where supported by Lightpanda, falling back to Runtime.evaluate for operations without a CDP equivalent (url, submit).
+Page operations use native CDP methods (DOM.querySelector, DOM.getBoxModel, Input.dispatchMouseEvent, Input.insertText, DOM.getOuterHTML) where supported by Lightpanda, falling back to Runtime.evaluate for operations without a CDP equivalent (url, submit).
 
 ## Lightpanda binary
 
