@@ -41,6 +41,7 @@ defmodule LightCDP.MixProject do
       main: "LightCDP",
       source_url: "https://github.com/lessless/light_cdp",
       extras: [
+        "guides/observability.md",
         "examples/sample.md",
         "examples/sample_traced.md"
       ]

@@ -2,59 +2,16 @@ defmodule LightCDP.Telemetry.OtelBridge do
   @moduledoc """
   Bridges LightCDP telemetry events to OpenTelemetry spans.
 
-  Requires `opentelemetry` and `opentelemetry_api` in your dependencies.
-  Does not depend on `opentelemetry_telemetry` — uses the Erlang OTel API
-  directly to manage span context via a process dictionary token stack.
+  Uses the Erlang OTel API directly — no `opentelemetry_telemetry` needed.
+  Connection command spans include the CDP method name for readability
+  (e.g. `connection.command DOM.querySelector`). Multi-step operations
+  emit span events for internal steps (focus, clear, insert).
 
-  ## Setup
-
-  In an OTP application, add the OTel deps and configure the exporter:
-
-      # mix.exs
-      {:opentelemetry, "~> 1.4"},
-      {:opentelemetry_api, "~> 1.3"},
-      {:opentelemetry_exporter, "~> 1.7"}
-
-      # config/runtime.exs
-      config :opentelemetry_exporter, otlp_endpoint: "http://localhost:4318"
-
-  Then call `setup/0` from your `Application.start/2` callback:
-
-      defmodule MyApp.Application do
-        use Application
-
-        def start(_type, _args) do
-          LightCDP.Telemetry.OtelBridge.setup()
-
-          children = [...]
-          Supervisor.start_link(children, strategy: :one_for_one)
-        end
-      end
-
-  In a script, call it after `Mix.install`:
-
-      Mix.install([
-        {:light_cdp, "~> 0.2"},
-        {:opentelemetry, "~> 1.4"},
-        {:opentelemetry_api, "~> 1.3"},
-        {:opentelemetry_exporter, "~> 1.7"}
-      ])
+      # In Application.start/2
       LightCDP.Telemetry.OtelBridge.setup()
 
-  All LightCDP page operations will then produce OTel spans. Wrap your
-  workflow in a root span for a single trace:
-
-      require OpenTelemetry.Tracer
-      OpenTelemetry.Tracer.with_span "my_workflow" do
-        {:ok, session} = LightCDP.start()
-        {:ok, page} = LightCDP.new_page(session)
-        LightCDP.Page.navigate(page, "https://example.com")
-        LightCDP.stop(session)
-      end
-
-  ## Teardown
-
-      LightCDP.Telemetry.OtelBridge.teardown()
+  See the [Observability guide](observability.md) for full setup instructions
+  including deps, exporter config, and Jaeger integration.
   """
 
   @tracer_id :light_cdp
