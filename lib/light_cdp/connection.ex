@@ -60,21 +60,28 @@ defmodule LightCDP.Connection do
   (anything after `Target.attachToTarget`).
   """
   def send_command(pid, method, params \\ %{}, timeout \\ 15_000, session_id \\ nil) do
-    ref = make_ref()
-    WebSockex.cast(pid, {:send_command, method, params, session_id, self(), ref})
+    metadata = %{method: method, session_id: session_id}
 
-    receive do
-      {:cdp_response, ^ref, result} ->
-        {:ok, result}
+    :telemetry.span([:light_cdp, :connection, :command], metadata, fn ->
+      ref = make_ref()
+      WebSockex.cast(pid, {:send_command, method, params, session_id, self(), ref})
 
-      {:cdp_error, ^ref, %{"code" => code, "message" => message}} ->
-        {:error, LightCDP.CDPError.new(code, message)}
+      result =
+        receive do
+          {:cdp_response, ^ref, result} ->
+            {:ok, result}
 
-      {:cdp_error, ^ref, error} ->
-        {:error, LightCDP.CDPError.new(0, inspect(error))}
-    after
-      timeout -> {:error, LightCDP.TimeoutError.new(operation: method, timeout_ms: timeout)}
-    end
+          {:cdp_error, ^ref, %{"code" => code, "message" => message}} ->
+            {:error, LightCDP.CDPError.new(code, message)}
+
+          {:cdp_error, ^ref, error} ->
+            {:error, LightCDP.CDPError.new(0, inspect(error))}
+        after
+          timeout -> {:error, LightCDP.TimeoutError.new(operation: method, timeout_ms: timeout)}
+        end
+
+      {result, metadata}
+    end)
   end
 
   @doc """

@@ -67,14 +67,21 @@ defmodule LightCDP.Page do
   """
   def navigate(%__MODULE__{conn: conn, session_id: sid}, url, opts \\ []) do
     timeout = opts[:timeout] || @nav_timeout
-    wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")
+    meta = %{session_id: sid, url: url, timeout: timeout}
 
-    with {:ok, _} <-
-           LightCDP.Connection.send_command(conn, "Page.navigate", %{url: url}, timeout, sid),
-         {:ok, _} <-
-           LightCDP.Connection.await_event(wait_ref, timeout) do
-      :ok
-    end
+    :telemetry.span([:light_cdp, :page, :navigate], meta, fn ->
+      wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")
+
+      result =
+        with {:ok, _} <-
+               LightCDP.Connection.send_command(conn, "Page.navigate", %{url: url}, timeout, sid),
+             {:ok, _} <-
+               LightCDP.Connection.await_event(wait_ref, timeout) do
+          :ok
+        end
+
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -92,20 +99,23 @@ defmodule LightCDP.Page do
   """
   def evaluate(%__MODULE__{conn: conn, session_id: sid}, expression, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
+    meta = %{session_id: sid, expression: expression, timeout: timeout}
 
-    case LightCDP.Connection.send_command(
-           conn,
-           "Runtime.evaluate",
-           %{expression: expression, returnByValue: true},
-           timeout,
-           sid
-         ) do
-      {:ok, result} ->
-        parse_evaluate_result(result)
+    :telemetry.span([:light_cdp, :page, :evaluate], meta, fn ->
+      result =
+        case LightCDP.Connection.send_command(
+               conn,
+               "Runtime.evaluate",
+               %{expression: expression, returnByValue: true},
+               timeout,
+               sid
+             ) do
+          {:ok, result} -> parse_evaluate_result(result)
+          {:error, _} = err -> err
+        end
 
-      {:error, _} = err ->
-        err
-    end
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -115,8 +125,13 @@ defmodule LightCDP.Page do
 
       {:ok, "https://example.com/"} = LightCDP.Page.url(page)
   """
-  def url(page) do
-    evaluate(page, "window.location.href")
+  def url(%__MODULE__{session_id: sid} = page) do
+    meta = %{session_id: sid}
+
+    :telemetry.span([:light_cdp, :page, :url], meta, fn ->
+      result = evaluate(page, "window.location.href")
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -135,11 +150,17 @@ defmodule LightCDP.Page do
   """
   def screenshot(%__MODULE__{conn: conn, session_id: sid}, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
+    meta = %{session_id: sid, timeout: timeout}
 
-    with {:ok, %{"data" => data}} <-
-           send_cdp(conn, sid, "Page.captureScreenshot", %{format: "png"}, timeout) do
-      {:ok, Base.decode64!(data)}
-    end
+    :telemetry.span([:light_cdp, :page, :screenshot], meta, fn ->
+      result =
+        with {:ok, %{"data" => data}} <-
+               send_cdp(conn, sid, "Page.captureScreenshot", %{format: "png"}, timeout) do
+          {:ok, Base.decode64!(data)}
+        end
+
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -152,12 +173,19 @@ defmodule LightCDP.Page do
       {:ok, html} = LightCDP.Page.content(page)
   """
   def content(%__MODULE__{conn: conn, session_id: sid}) do
-    with {:ok, %{"root" => %{"nodeId" => root_id}}} <-
-           send_cdp(conn, sid, "DOM.getDocument"),
-         {:ok, %{"outerHTML" => html}} <-
-           send_cdp(conn, sid, "DOM.getOuterHTML", %{nodeId: root_id}) do
-      {:ok, html}
-    end
+    meta = %{session_id: sid}
+
+    :telemetry.span([:light_cdp, :page, :content], meta, fn ->
+      result =
+        with {:ok, %{"root" => %{"nodeId" => root_id}}} <-
+               send_cdp(conn, sid, "DOM.getDocument"),
+             {:ok, %{"outerHTML" => html}} <-
+               send_cdp(conn, sid, "DOM.getOuterHTML", %{nodeId: root_id}) do
+          {:ok, html}
+        end
+
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -176,13 +204,19 @@ defmodule LightCDP.Page do
       :ok = LightCDP.Page.click(page, "#submit-btn")
       {:error, %LightCDP.ElementNotFoundError{selector: "#nope"}} = LightCDP.Page.click(page, "#nope")
   """
-  def click(%__MODULE__{} = page, selector, opts \\ []) do
+  def click(%__MODULE__{session_id: sid} = page, selector, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
+    meta = %{session_id: sid, selector: selector, timeout: timeout}
 
-    with {:ok, node_id} <- query_selector(page, selector, timeout),
-         {:ok, {x, y}} <- get_click_point(page, node_id, timeout) do
-      dispatch_click(page, x, y, timeout)
-    end
+    :telemetry.span([:light_cdp, :page, :click], meta, fn ->
+      result =
+        with {:ok, node_id} <- query_selector(page, selector, timeout),
+             {:ok, {x, y}} <- get_click_point(page, node_id, timeout) do
+          dispatch_click(page, x, y, timeout)
+        end
+
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -200,16 +234,22 @@ defmodule LightCDP.Page do
 
       :ok = LightCDP.Page.fill(page, "#email", "user@example.com")
   """
-  def fill(%__MODULE__{} = page, selector, value, opts \\ []) do
+  def fill(%__MODULE__{session_id: sid} = page, selector, value, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
+    meta = %{session_id: sid, selector: selector, timeout: timeout}
 
-    with {:ok, node_id} <- query_selector(page, selector, timeout),
-         {:ok, object_id} <- resolve_node(page, node_id, timeout),
-         :ok <- focus_element(page, object_id, timeout),
-         :ok <- clear_value(page, object_id, timeout),
-         :ok <- insert_text(page, value, timeout) do
-      :ok
-    end
+    :telemetry.span([:light_cdp, :page, :fill], meta, fn ->
+      result =
+        with {:ok, node_id} <- query_selector(page, selector, timeout),
+             {:ok, object_id} <- resolve_node(page, node_id, timeout),
+             :ok <- focus_element(page, object_id, timeout),
+             :ok <- clear_value(page, object_id, timeout),
+             :ok <- insert_text(page, value, timeout) do
+          :ok
+        end
+
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -231,22 +271,30 @@ defmodule LightCDP.Page do
       # Submit with no fields
       :ok = LightCDP.Page.submit(page, "form")
   """
-  def submit(page, form_selector, fields \\ %{}, opts \\ []) do
-    with :ok <- fill_fields(page, fields, opts) do
-      wait_for_navigation(
-        page,
-        fn ->
-          evaluate(page, """
-          (() => {
-            const form = document.querySelector(#{Jason.encode!(form_selector)});
-            if (!form) throw new Error('Form not found: #{form_selector}');
-            form.submit();
-          })()
-          """)
-        end,
-        opts
-      )
-    end
+  def submit(%__MODULE__{session_id: sid} = page, form_selector, fields \\ %{}, opts \\ []) do
+    timeout = opts[:timeout] || @nav_timeout
+    meta = %{session_id: sid, form_selector: form_selector, field_count: map_size(fields), timeout: timeout}
+
+    :telemetry.span([:light_cdp, :page, :submit], meta, fn ->
+      result =
+        with :ok <- fill_fields(page, fields, opts) do
+          wait_for_navigation(
+            page,
+            fn ->
+              evaluate(page, """
+              (() => {
+                const form = document.querySelector(#{Jason.encode!(form_selector)});
+                if (!form) throw new Error('Form not found: #{form_selector}');
+                form.submit();
+              })()
+              """)
+            end,
+            opts
+          )
+        end
+
+      {result, meta}
+    end)
   end
 
   @doc """
@@ -264,12 +312,16 @@ defmodule LightCDP.Page do
 
       :ok = LightCDP.Page.wait_for_selector(page, ".search-results", timeout: 5_000)
   """
-  def wait_for_selector(page, selector, opts \\ []) do
+  def wait_for_selector(%__MODULE__{session_id: sid} = page, selector, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
     interval = opts[:interval] || 100
-    deadline = System.monotonic_time(:millisecond) + timeout
+    meta = %{session_id: sid, selector: selector, timeout: timeout}
 
-    poll_selector(page, selector, interval, deadline)
+    :telemetry.span([:light_cdp, :page, :wait_for_selector], meta, fn ->
+      deadline = System.monotonic_time(:millisecond) + timeout
+      result = poll_selector(page, selector, interval, deadline)
+      {result, meta}
+    end)
   end
 
   defp poll_selector(page, selector, interval, deadline) do
@@ -302,20 +354,27 @@ defmodule LightCDP.Page do
         LightCDP.Page.click(page, "a.next-page")
       end)
   """
-  def wait_for_navigation(%__MODULE__{conn: conn}, fun, opts \\ []) do
+  def wait_for_navigation(%__MODULE__{conn: conn, session_id: sid}, fun, opts \\ []) do
     timeout = opts[:timeout] || @nav_timeout
-    wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")
+    meta = %{session_id: sid, timeout: timeout}
 
-    case fun.() do
-      {:error, _} = err ->
-        err
+    :telemetry.span([:light_cdp, :page, :wait_for_navigation], meta, fn ->
+      wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")
 
-      _ ->
-        case LightCDP.Connection.await_event(wait_ref, timeout) do
-          {:ok, _} -> :ok
-          {:error, _} = err -> err
+      result =
+        case fun.() do
+          {:error, _} = err ->
+            err
+
+          _ ->
+            case LightCDP.Connection.await_event(wait_ref, timeout) do
+              {:ok, _} -> :ok
+              {:error, _} = err -> err
+            end
         end
-    end
+
+      {result, meta}
+    end)
   end
 
   # --- Native CDP helpers ---
