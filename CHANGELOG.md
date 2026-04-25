@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.2.1](https://github.com/lessless/light_cdp/compare/v0.2.0...v0.2.1) (2026-04-25)
+
+### Chores
+
+- Add `mix ci` alias (format + compile + test)
+- Fix code formatting
+
+### Docs
+
+- Extract Observability guide from OtelBridge moduledoc
+- Merge sample pages into single "Sample: HN Search"
+- Remove duplicated content from guides (link to source instead)
+- Update OtelBridge setup with exporter deps and correct version
+
 ## [v0.2.0](https://github.com/lessless/light_cdp/compare/v0.1.0...v0.2.0) (2026-04-25)
 
 ### Features
