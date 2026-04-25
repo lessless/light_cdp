@@ -1,9 +1,29 @@
 defmodule LightCDP do
   @moduledoc """
-  A minimal CDP (Chrome DevTools Protocol) client for Elixir.
+  A minimal CDP (Chrome DevTools Protocol) client for Elixir, built for
+  [Lightpanda](https://lightpanda.io/).
 
-  Connects directly to [Lightpanda](https://lightpanda.io/) via WebSocket.
-  No Node.js, Playwright, or Puppeteer required.
+  ## Why Lightpanda
+
+  Headless Chrome carries the full rendering pipeline — CSS parsing, layout,
+  compositing, painting — even when no human is looking at the result.
+  [Lightpanda strips all of that away](https://lightpanda.io/blog/posts/what-is-a-true-headless-browser),
+  keeping only the DOM and JavaScript engine, which cuts resource usage by
+  60-80% for automation workloads.
+
+  It's [written in Zig](https://lightpanda.io/blog/posts/why-we-built-lightpanda-in-zig)
+  for explicit memory control via arena allocators — critical when crawling
+  thousands of pages — with seamless C interop for embedding V8. The
+  [custom DOM implementation](https://lightpanda.io/blog/posts/migrating-our-dom-to-zig)
+  consolidates allocations and uses compile-time V8 snapshots to cut startup
+  time by 10-30%.
+
+  ## Why LightCDP
+
+  Existing Elixir browser automation libraries (`playwright_ex`,
+  `playwright-elixir`) route commands through a Node.js Playwright driver.
+  LightCDP talks CDP over WebSocket directly to Lightpanda — no Node.js,
+  no Playwright, no Puppeteer in the middle.
 
   ## Quick start
 
@@ -15,6 +35,16 @@ defmodule LightCDP do
       # => {:ok, "Example Domain"}
 
       LightCDP.stop(session)
+
+  See `LightCDP.Page` for the full interaction API (click, fill, submit,
+  wait_for_selector, wait_for_navigation).
+
+  ## Error handling
+
+  All functions return `{:ok, result}`, `:ok`, or `{:error, exception}`.
+  See `LightCDP.ElementNotFoundError`, `LightCDP.TimeoutError`,
+  `LightCDP.JavaScriptError`, `LightCDP.CDPError`, and
+  `LightCDP.ConnectionError`.
 
   ## Lightpanda binary
 
