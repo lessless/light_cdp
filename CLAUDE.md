@@ -23,6 +23,8 @@ When in doubt, delete code rather than add it.
 
 All public functions MUST have `@doc` with a description, options (if any), and at least one example. All public modules MUST have `@moduledoc`. When changing a function's behavior or return type, update its `@doc` in the same commit. Run `mix docs` to verify.
 
+Before committing, check if `README.md` needs updating. The README describes responsibilities, not implementation details — update it when adding or removing modules, changing the public API surface, or altering how the library works at a high level. Do not list specific functions in the README.
+
 ## Running tests
 
 ```
