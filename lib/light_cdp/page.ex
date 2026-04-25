@@ -92,14 +92,44 @@ defmodule LightCDP.Page do
     end
   end
 
+  def submit(page, form_selector, fields \\ %{}, opts \\ []) do
+    with :ok <- fill_fields(page, fields, opts) do
+      wait_for_navigation(page, fn ->
+        evaluate(page, """
+        (() => {
+          const form = document.querySelector(#{Jason.encode!(form_selector)});
+          if (!form) throw new Error('Form not found: #{form_selector}');
+          form.submit();
+        })()
+        """)
+      end, opts)
+    end
+  end
+
+  defp fill_fields(_page, fields, _opts) when map_size(fields) == 0, do: :ok
+
+  defp fill_fields(page, fields, opts) do
+    Enum.reduce_while(fields, :ok, fn {selector, value}, :ok ->
+      case fill(page, selector, value, opts) do
+        :ok -> {:cont, :ok}
+        {:error, _} = err -> {:halt, err}
+      end
+    end)
+  end
+
   def wait_for_navigation(%__MODULE__{conn: conn}, fun, opts \\ []) do
     timeout = opts[:timeout] || @nav_timeout
     wait_ref = LightCDP.Connection.register_event_waiter(conn, "Page.loadEventFired")
-    fun.()
 
-    case LightCDP.Connection.await_event(wait_ref, timeout) do
-      {:ok, _} -> :ok
-      {:error, _} = err -> err
+    case fun.() do
+      {:error, _} = err ->
+        err
+
+      _ ->
+        case LightCDP.Connection.await_event(wait_ref, timeout) do
+          {:ok, _} -> :ok
+          {:error, _} = err -> err
+        end
     end
   end
 

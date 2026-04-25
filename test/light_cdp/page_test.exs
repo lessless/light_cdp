@@ -98,6 +98,46 @@ defmodule LightCDP.PageTest do
     end
   end
 
+  describe "submit/3" do
+    test "fills fields and submits a form", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+
+      {:ok, _} =
+        LightCDP.Page.evaluate(page, """
+        document.body.innerHTML = `
+          <form action="https://example.com/submitted">
+            <input id="user" type="text">
+            <input id="pass" type="password">
+          </form>
+        `;
+        """)
+
+      :ok = LightCDP.Page.submit(page, "form", %{"#user" => "alice", "#pass" => "secret"})
+
+      {:ok, url} = LightCDP.Page.url(page)
+      assert url =~ "submitted"
+    end
+
+    test "submits with no fields to fill", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+
+      {:ok, _} =
+        LightCDP.Page.evaluate(page, """
+        document.body.innerHTML = '<form action="https://example.com/done"></form>';
+        """)
+
+      :ok = LightCDP.Page.submit(page, "form")
+
+      {:ok, url} = LightCDP.Page.url(page)
+      assert url =~ "done"
+    end
+
+    test "returns error when form not found", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+      assert {:error, _} = LightCDP.Page.submit(page, "#nonexistent")
+    end
+  end
+
   describe "error handling" do
     test "evaluate returns error for JS exceptions", %{page: page} do
       assert {:error, _} = LightCDP.Page.evaluate(page, "throw new Error('boom')")
