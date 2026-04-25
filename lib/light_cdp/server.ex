@@ -38,8 +38,7 @@ defmodule LightCDP.Server do
 
     {:ok, pid, os_pid} =
       :exec.run(
-        [binary, "serve", "--host", host, "--port", to_string(port_number),
-         "--timeout", to_string(timeout)],
+        [binary, "serve", "--host", host, "--port", to_string(port_number), "--timeout", to_string(timeout)],
         [:stdout, :stderr, :monitor]
       )
 

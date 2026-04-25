@@ -4,7 +4,12 @@ defmodule LightCDP.ProtocolTest do
   describe "encode/3" do
     test "encodes a command with id, method, and params" do
       encoded = LightCDP.Protocol.encode(1, "Page.navigate", %{url: "https://example.com"})
-      assert Jason.decode!(encoded) == %{"id" => 1, "method" => "Page.navigate", "params" => %{"url" => "https://example.com"}}
+
+      assert Jason.decode!(encoded) == %{
+               "id" => 1,
+               "method" => "Page.navigate",
+               "params" => %{"url" => "https://example.com"}
+             }
     end
 
     test "encodes a command with empty params by default" do

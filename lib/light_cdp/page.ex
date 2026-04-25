@@ -210,15 +210,19 @@ defmodule LightCDP.Page do
   """
   def submit(page, form_selector, fields \\ %{}, opts \\ []) do
     with :ok <- fill_fields(page, fields, opts) do
-      wait_for_navigation(page, fn ->
-        evaluate(page, """
-        (() => {
-          const form = document.querySelector(#{Jason.encode!(form_selector)});
-          if (!form) throw new Error('Form not found: #{form_selector}');
-          form.submit();
-        })()
-        """)
-      end, opts)
+      wait_for_navigation(
+        page,
+        fn ->
+          evaluate(page, """
+          (() => {
+            const form = document.querySelector(#{Jason.encode!(form_selector)});
+            if (!form) throw new Error('Form not found: #{form_selector}');
+            form.submit();
+          })()
+          """)
+        end,
+        opts
+      )
     end
   end
 
@@ -322,9 +326,19 @@ defmodule LightCDP.Page do
 
   defp dispatch_click(%{conn: conn, session_id: sid}, x, y, timeout) do
     mouse = fn type ->
-      send_cdp(conn, sid, "Input.dispatchMouseEvent", %{
-        type: type, x: x, y: y, button: "left", clickCount: 1
-      }, timeout)
+      send_cdp(
+        conn,
+        sid,
+        "Input.dispatchMouseEvent",
+        %{
+          type: type,
+          x: x,
+          y: y,
+          button: "left",
+          clickCount: 1
+        },
+        timeout
+      )
     end
 
     with {:ok, _} <- mouse.("mousePressed"),
@@ -342,20 +356,32 @@ defmodule LightCDP.Page do
 
   defp focus_element(%{conn: conn, session_id: sid}, object_id, timeout) do
     with {:ok, _} <-
-           send_cdp(conn, sid, "Runtime.callFunctionOn", %{
-             objectId: object_id,
-             functionDeclaration: "function() { this.focus(); }"
-           }, timeout) do
+           send_cdp(
+             conn,
+             sid,
+             "Runtime.callFunctionOn",
+             %{
+               objectId: object_id,
+               functionDeclaration: "function() { this.focus(); }"
+             },
+             timeout
+           ) do
       :ok
     end
   end
 
   defp clear_value(%{conn: conn, session_id: sid}, object_id, timeout) do
     with {:ok, _} <-
-           send_cdp(conn, sid, "Runtime.callFunctionOn", %{
-             objectId: object_id,
-             functionDeclaration: "function() { this.value = ''; }"
-           }, timeout) do
+           send_cdp(
+             conn,
+             sid,
+             "Runtime.callFunctionOn",
+             %{
+               objectId: object_id,
+               functionDeclaration: "function() { this.value = ''; }"
+             },
+             timeout
+           ) do
       :ok
     end
   end

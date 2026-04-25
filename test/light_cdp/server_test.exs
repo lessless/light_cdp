@@ -18,7 +18,12 @@ defmodule LightCDP.ServerTest do
   end
 
   test "uses application env for default path" do
-    Application.put_env(:light_cdp, :lightpanda_path, Path.join([System.get_env("HOME"), ".local", "bin", "lightpanda"]))
+    Application.put_env(
+      :light_cdp,
+      :lightpanda_path,
+      Path.join([System.get_env("HOME"), ".local", "bin", "lightpanda"])
+    )
+
     {:ok, server, _endpoint} = LightCDP.Server.start(port: 9226)
     LightCDP.Server.stop(server)
     Application.delete_env(:light_cdp, :lightpanda_path)

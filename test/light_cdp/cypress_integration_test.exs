@@ -128,6 +128,7 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns error for missing element", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
+
       assert {:error, %LightCDP.ElementNotFoundError{selector: "#nonexistent"}} =
                LightCDP.Page.click(page, "#nonexistent")
     end
@@ -171,6 +172,7 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns error for missing element", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
+
       assert {:error, %LightCDP.ElementNotFoundError{selector: "#nope"}} =
                LightCDP.Page.fill(page, "#nope", "text")
     end
@@ -214,6 +216,7 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns error for missing form", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
+
       assert {:error, %LightCDP.JavaScriptError{}} =
                LightCDP.Page.submit(page, "#missing-form")
     end
@@ -248,6 +251,7 @@ defmodule LightCDP.CypressIntegrationTest do
 
     test "returns timeout when no navigation occurs", %{page: page} do
       :ok = LightCDP.Page.navigate(page, @base)
+
       assert {:error, %LightCDP.TimeoutError{}} =
                LightCDP.Page.wait_for_navigation(page, fn -> :noop end, timeout: 200)
     end

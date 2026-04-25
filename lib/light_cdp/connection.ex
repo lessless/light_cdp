@@ -123,8 +123,7 @@ defmodule LightCDP.Connection do
       |> then(fn m -> if session_id, do: Map.put(m, :sessionId, session_id), else: m end)
       |> Jason.encode!()
 
-    {:reply, {:text, msg},
-     %{state | id: id + 1, pending: Map.put(state.pending, id, {from, ref})}}
+    {:reply, {:text, msg}, %{state | id: id + 1, pending: Map.put(state.pending, id, {from, ref})}}
   end
 
   @impl true
