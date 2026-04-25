@@ -9,6 +9,7 @@ defmodule LightCDP.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
+      aliases: aliases(),
       description: "Minimal CDP (Chrome DevTools Protocol) client for Lightpanda. No Node.js required.",
       package: package(),
       source_url: "https://github.com/lessless/light_cdp"
@@ -50,7 +51,16 @@ defmodule LightCDP.MixProject do
       {:telemetry, "~> 1.0"},
       {:opentelemetry, "~> 1.4", optional: true},
       {:opentelemetry_api, "~> 1.3", optional: true},
-      {:ex_doc, "~> 0.35", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false},
+      {:tidewave, "~> 0.4", only: :dev},
+      {:bandit, "~> 1.8", only: :dev}
+    ]
+  end
+
+  defp aliases do
+    [
+      tidewave:
+        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 40001) end)'"
     ]
   end
 end
