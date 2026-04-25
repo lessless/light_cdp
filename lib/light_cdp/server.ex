@@ -6,9 +6,12 @@ defmodule LightCDP.Server do
 
     ensure_exec_started()
 
+    timeout = opts[:timeout] || 30
+
     {:ok, pid, os_pid} =
       :exec.run(
-        [binary, "serve", "--host", host, "--port", to_string(port_number)],
+        [binary, "serve", "--host", host, "--port", to_string(port_number),
+         "--timeout", to_string(timeout)],
         [:stdout, :stderr, :monitor]
       )
 

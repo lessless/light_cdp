@@ -13,7 +13,9 @@ defmodule LightCDP.Page do
              flatten: true
            }),
          {:ok, _} <-
-           LightCDP.Connection.send_command(conn, "Page.enable", %{}, 5_000, session_id) do
+           LightCDP.Connection.send_command(conn, "Page.enable", %{}, 5_000, session_id),
+         {:ok, _} <-
+           LightCDP.Connection.send_command(conn, "DOM.enable", %{}, 5_000, session_id) do
       {:ok, %__MODULE__{conn: conn, session_id: session_id}}
     end
   end
