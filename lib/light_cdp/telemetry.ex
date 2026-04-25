@@ -24,9 +24,24 @@ defmodule LightCDP.Telemetry do
 
   Metadata: `%{method: String.t(), session_id: String.t() | nil}`
 
-  ## Default logger
+  ## Step events
 
+  Multi-step operations (`fill`, `click`) emit point events at
+  `[:light_cdp, :page, :step]` with `%{step: atom}` metadata.
+  These are not spans — they annotate the parent span with what
+  happened inside (focus, clear, insert, query, locate, etc.).
+
+  ## Observability options
+
+  By default, no handlers are attached (null sink). Opt in per environment:
+
+      # Logger output (no extra deps, good for dev)
       LightCDP.Telemetry.attach_default_logger(level: :debug)
+
+      # OpenTelemetry spans (requires :opentelemetry in deps, good for staging/prod)
+      LightCDP.Telemetry.OtelBridge.setup()
+
+  Call either from your `Application.start/2` callback or at script startup.
   """
 
   require Logger
@@ -61,13 +76,29 @@ defmodule LightCDP.Telemetry do
   end
 
   @doc """
-  Attaches a default Logger handler for all LightCDP telemetry events.
+  Attaches a default Logger handler for all LightCDP telemetry events,
+  including step annotations for multi-step operations.
+
+  Idempotent — safe to call multiple times.
 
   ## Options
 
     * `:level` - log level (default: `:debug`)
+
+  ## Example output
+
+      [debug] navigate https://example.com
+      [debug] CDP Page.navigate
+      [debug] CDP Page.navigate in 657.2ms
+      [debug] navigate completed in 822.3ms
+      [debug] fill #email
+      [debug]   · focus
+      [debug]   · clear
+      [debug]   · insert (value_length=16)
+      [debug] fill completed in 3.1ms
   """
   def attach_default_logger(opts \\ []) do
+    detach_default_logger()
     level = opts[:level] || :debug
 
     :telemetry.attach_many(
@@ -83,6 +114,8 @@ defmodule LightCDP.Telemetry do
   """
   def detach_default_logger do
     :telemetry.detach(@handler_id)
+  catch
+    _, _ -> :ok
   end
 
   @doc false
@@ -108,6 +141,15 @@ defmodule LightCDP.Telemetry do
 
   defp format_event([:light_cdp, :connection, :command, :stop], %{duration: duration}, %{method: method}) do
     "CDP #{method} in #{format_duration(duration)}"
+  end
+
+  defp format_event([:light_cdp, :page, :step], _measurements, %{step: step} = metadata) do
+    detail =
+      metadata
+      |> Map.drop([:step])
+      |> Enum.map_join(", ", fn {k, v} -> "#{k}=#{inspect(v)}" end)
+
+    if detail == "", do: "  · #{step}", else: "  · #{step} (#{detail})"
   end
 
   defp format_event(event, _measurements, _metadata) do

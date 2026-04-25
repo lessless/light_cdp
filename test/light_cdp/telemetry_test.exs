@@ -249,5 +249,24 @@ defmodule LightCDP.TelemetryTest do
       handlers = :telemetry.list_handlers([:light_cdp, :page, :navigate])
       assert Enum.empty?(handlers)
     end
+
+    test "default logger handles step events", %{page: page} do
+      :ok = LightCDP.Telemetry.attach_default_logger(level: :debug)
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+
+      {:ok, _} =
+        LightCDP.Page.evaluate(page, "document.body.innerHTML = '<input id=\"t\">'")
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          LightCDP.Page.fill(page, "#t", "hello")
+        end)
+
+      assert log =~ "focus"
+      assert log =~ "clear"
+      assert log =~ "insert"
+
+      LightCDP.Telemetry.detach_default_logger()
+    end
   end
 end
