@@ -120,6 +120,29 @@ defmodule LightCDP.Page do
   end
 
   @doc """
+  Captures a screenshot of the page as a PNG binary.
+
+  Uses native `Page.captureScreenshot`.
+
+  ## Options
+
+    * `:timeout` - milliseconds (default: `15_000`)
+
+  ## Example
+
+      {:ok, png} = LightCDP.Page.screenshot(page)
+      File.write!("screenshot.png", png)
+  """
+  def screenshot(%__MODULE__{conn: conn, session_id: sid}, opts \\ []) do
+    timeout = opts[:timeout] || @default_timeout
+
+    with {:ok, %{"data" => data}} <-
+           send_cdp(conn, sid, "Page.captureScreenshot", %{format: "png"}, timeout) do
+      {:ok, Base.decode64!(data)}
+    end
+  end
+
+  @doc """
   Returns the full page HTML including doctype.
 
   Uses native `DOM.getOuterHTML` instead of JavaScript.

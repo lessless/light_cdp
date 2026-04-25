@@ -67,6 +67,20 @@ defmodule LightCDP.PageTest do
     end
   end
 
+  describe "screenshot/2" do
+    test "returns a PNG binary", %{page: page} do
+      :ok = LightCDP.Page.navigate(page, "https://example.com")
+      {:ok, png} = LightCDP.Page.screenshot(page)
+      assert <<0x89, 0x50, 0x4E, 0x47, _rest::binary>> = png
+    end
+
+    test "works on about:blank", %{page: page} do
+      {:ok, png} = LightCDP.Page.screenshot(page)
+      assert is_binary(png)
+      assert byte_size(png) > 0
+    end
+  end
+
   describe "click/2" do
     test "clicks an element by selector", %{page: page} do
       :ok = LightCDP.Page.navigate(page, "https://example.com")
