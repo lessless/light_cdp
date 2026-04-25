@@ -49,7 +49,7 @@ defmodule LightCDP.MixProject do
       {:req, "~> 0.5"},
       {:erlexec, "~> 2.0"},
       {:telemetry, "~> 1.0"},
-      {:opentelemetry, "~> 1.4", optional: true},
+      {:opentelemetry, "~> 1.4", optional: true, runtime: false},
       {:opentelemetry_api, "~> 1.3", optional: true},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:tidewave, "~> 0.4", only: :dev},
