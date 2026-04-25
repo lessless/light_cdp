@@ -110,24 +110,6 @@ UI at [http://localhost:16686](http://localhost:16686).
 
 ## Telemetry events reference
 
-### Span events (start/stop/exception)
+See `LightCDP.Telemetry` for the full list of event names, metadata per operation, and the distinction between span events and step annotations.
 
-| Event prefix | Metadata |
-|---|---|
-| `[:light_cdp, :page, :navigate]` | `%{session_id, url, timeout}` |
-| `[:light_cdp, :page, :evaluate]` | `%{session_id, expression, timeout}` |
-| `[:light_cdp, :page, :click]` | `%{session_id, selector, timeout}` |
-| `[:light_cdp, :page, :fill]` | `%{session_id, selector, timeout}` |
-| `[:light_cdp, :page, :submit]` | `%{session_id, form_selector, field_count, timeout}` |
-| `[:light_cdp, :page, :screenshot]` | `%{session_id, timeout}` |
-| `[:light_cdp, :page, :content]` | `%{session_id}` |
-| `[:light_cdp, :page, :url]` | `%{session_id}` |
-| `[:light_cdp, :page, :wait_for_selector]` | `%{session_id, selector, timeout}` |
-| `[:light_cdp, :page, :wait_for_navigation]` | `%{session_id, timeout}` |
-| `[:light_cdp, :connection, :command]` | `%{method, session_id}` |
-
-### Step events (point annotations)
-
-`[:light_cdp, :page, :step]` with `%{step: atom}` — emitted during `fill` (focus, clear, insert), `click` (query, locate, press, release), and `wait_for_selector` (query).
-
-See `examples/sample_traced.exs` for a full working example.
+For a runnable example, see [`examples/sample_traced.exs`](https://github.com/lessless/light_cdp/blob/main/examples/sample_traced.exs).
